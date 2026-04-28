@@ -1,0 +1,1973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Hello, World</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: #0a1929;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
+    color: #1a1a1a;
+    -webkit-font-smoothing: antialiased;
+  }
+  #map { width: 100vw; height: 100vh; background: #ffffff; }
+
+  .leaflet-container { background: #0a1929 !important; font-family: inherit; outline: none; }
+
+  /* Smoother, longer zoom animation with strong ease-out */
+  .leaflet-zoom-anim .leaflet-zoom-animated {
+    -webkit-transition: -webkit-transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+            transition:         transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+  .leaflet-fade-anim .leaflet-tile {
+    will-change: opacity;
+    -webkit-transition: opacity 0.25s linear;
+            transition: opacity 0.25s linear;
+  }
+
+  .leaflet-container.leaflet-grab,
+  .leaflet-grab {
+    cursor: grab;
+    cursor: -webkit-grab;
+  }
+  .leaflet-container.leaflet-dragging,
+  .leaflet-container.leaflet-dragging .leaflet-grab,
+  .leaflet-dragging .leaflet-grab {
+    cursor: grabbing;
+    cursor: -webkit-grabbing;
+  }
+  /* Dots get a pointer to signal they're clickable */
+  .leaflet-marker-icon { cursor: pointer; }
+  .leaflet-control-attribution {
+    background: rgba(255,255,255,0.6) !important;
+    font-size: 9px;
+    color: #aaa;
+  }
+  .leaflet-control-attribution a { color: #888; }
+  .leaflet-control-zoom {
+    border: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+  .leaflet-top.leaflet-right .leaflet-control-zoom {
+    margin-top: 48px;
+    margin-right: 14px;
+  }
+  .leaflet-control-zoom a {
+    background: rgba(13, 24, 38, 0.85) !important;
+    color: #999 !important;
+    border: 1px solid #2f4153 !important;
+    font-weight: 200 !important;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .leaflet-control-zoom a:hover {
+    background: rgba(20, 35, 55, 0.95) !important;
+    color: #d8d8d8 !important;
+    border-color: #3d5168 !important;
+  }
+  .leaflet-control-zoom-in {
+    border-radius: 4px 4px 0 0 !important;
+    border-bottom: none !important;
+  }
+  .leaflet-control-zoom-out {
+    border-radius: 0 0 4px 4px !important;
+    border-top: 1px solid #1f2d3f !important;
+  }
+  .leaflet-control-zoom a.leaflet-disabled {
+    opacity: 0.4;
+  }
+
+  /* Dots */
+  .dot-wrap { background: transparent !important; border: none !important; }
+  .dot {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    position: relative;
+    background: var(--c, #1a1a1a);
+    box-shadow: 0 0 8px var(--c-soft, rgba(0,0,0,0.2));
+  }
+  .dot::after {
+    content: '';
+    position: absolute; inset: -3px;
+    border-radius: 50%;
+    border: 1.5px solid var(--c-soft, rgba(0,0,0,0.3));
+    animation: pulse 3s ease-out infinite;
+    pointer-events: none;
+  }
+  .dot:hover { transform: scale(1.45); }
+  .dot.expanded { transform: scale(1.7); }
+  .dot.mine {
+    box-shadow:
+      0 0 0 2.5px #ffffff,
+      0 0 0 3.5px rgba(0,0,0,0.18),
+      0 0 10px var(--c-soft, rgba(0,0,0,0.25));
+  }
+  .dot.preview { opacity: 0.55; }
+  .dot.preview::after { animation: none; border-color: transparent; }
+
+  @keyframes pulse {
+    0%   { transform: scale(0.55); opacity: 0.55; }
+    80%  { opacity: 0; }
+    100% { transform: scale(2.4); opacity: 0; }
+  }
+
+  /* Popup */
+  .leaflet-popup-content-wrapper {
+    background: rgba(255, 255, 255, 0.07);
+    -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+    border: 0.5px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    padding: 2px 4px;
+  }
+  .leaflet-popup-tip {
+    background: rgba(255, 255, 255, 0.07);
+    -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+    border: 0.5px solid rgba(255, 255, 255, 0.1);
+    box-shadow: none;
+  }
+  .leaflet-popup-content {
+    margin: 13px 16px 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    width: 220px !important;
+  }
+  .msg-text {
+    color: rgba(255, 255, 255, 0.9);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .msg-text.clampable { cursor: pointer; }
+  .msg-text.expanded {
+    -webkit-line-clamp: unset;
+    display: block;
+    overflow: visible;
+  }
+  .msg-meta {
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    min-width: 0;
+  }
+  .msg-mood { display: inline-flex; align-items: center; gap: 5px; color: rgba(255, 255, 255, 0.4); }
+  .msg-mood::before {
+    content: '';
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--c);
+  }
+  .msg-loc {
+    color: rgba(255, 255, 255, 0.4);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .msg-divider { color: rgba(255, 255, 255, 0.25); }
+
+  /* Compose */
+  #compose {
+    position: fixed; inset: 0;
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  #compose.open { display: flex; }
+  .compose-card {
+    background: #fff;
+    border: 1px solid #eaeaea;
+    border-radius: 6px;
+    padding: 20px 22px 16px;
+    width: min(440px, 92vw);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+  }
+  .compose-loc {
+    font-size: 10px;
+    color: #999;
+    margin-bottom: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .compose-card textarea {
+    width: 100%;
+    min-height: 84px;
+    border: none;
+    outline: none;
+    resize: none;
+    font: inherit;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #1a1a1a;
+    padding: 0;
+    background: transparent;
+  }
+
+  .mood-picker {
+    margin-top: 10px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px 6px;
+  }
+  .mood {
+    background: none;
+    border: 1px solid transparent;
+    padding: 6px 4px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    transition: border-color 0.15s, background 0.15s;
+    font: inherit;
+    color: #666;
+  }
+  .mood:hover { background: #fafafa; }
+  .mood.selected { border-color: #1a1a1a; background: #fafafa; color: #1a1a1a; }
+  .mood-swatch {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--c);
+    box-shadow: 0 0 0 2px rgba(255,255,255,1), 0 0 5px var(--c);
+  }
+  .mood-name {
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+  }
+
+  .photo-row {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid #f3f3f3;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 28px;
+  }
+  .photo-btn {
+    background: none;
+    border: 1px dashed #d8d8d8;
+    color: #888;
+    padding: 6px 12px;
+    font: inherit;
+    font-size: 11.5px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .photo-btn:hover { border-color: #999; color: #333; }
+  .photo-preview {
+    position: relative;
+    display: inline-block;
+  }
+  .photo-preview img {
+    display: block;
+    max-width: 92px;
+    max-height: 92px;
+    border-radius: 3px;
+    border: 1px solid #ececec;
+  }
+  .photo-remove {
+    position: absolute;
+    top: -7px; right: -7px;
+    width: 18px; height: 18px;
+    border: none;
+    background: #1a1a1a;
+    color: #fff;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .msg-photo {
+    margin-top: 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+  }
+  .msg-photo img { display: block; width: 100%; height: auto; }
+
+  .compose-error {
+    margin-top: 10px;
+    font-size: 11.5px;
+    color: #c66;
+    line-height: 1.4;
+    letter-spacing: 0.02em;
+  }
+
+  .compose-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 1px solid #f3f3f3;
+  }
+  .counter { font-size: 11px; color: #aaa; font-variant-numeric: tabular-nums; }
+  .counter.over { color: #c53; }
+  .btn-row { display: flex; gap: 8px; }
+  .btn {
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 6px 14px;
+    font: inherit;
+    font-size: 12.5px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #555;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .btn:hover { background: #fafafa; }
+  .btn.primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+  .btn.primary:hover { background: #000; }
+  .btn.primary:disabled { background: #d4d4d4; border-color: #d4d4d4; color: #fff; cursor: not-allowed; }
+
+  #hint {
+    position: fixed;
+    bottom: 116px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: #999;
+    background: rgba(255,255,255,0.9);
+    padding: 5px 14px;
+    border-radius: 100px;
+    z-index: 500;
+    pointer-events: none;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: opacity 1s ease;
+    white-space: nowrap;
+  }
+  #hint.gone { opacity: 0; }
+
+  #title {
+    position: fixed;
+    top: 14px; left: 18px;
+    font-size: 12px;
+    color: #999;
+    z-index: 500;
+    pointer-events: none;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  #resetTimer {
+    position: fixed;
+    bottom: 82px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 12px;
+    color: #999;
+    z-index: 500;
+    pointer-events: none;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  #langBtn {
+    position: fixed;
+    top: 12px; right: 14px;
+    z-index: 501;
+    background: transparent;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: #999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: color 0.15s;
+  }
+  #langBtn:hover { color: #ccc; }
+  #langBtn svg { width: 18px; height: 18px; display: block; }
+
+  #langPanel {
+    position: fixed;
+    top: 42px; right: 14px;
+    z-index: 502;
+    background: rgba(13, 24, 38, 0.96);
+    border: 1px solid #2f4153;
+    border-radius: 6px;
+    padding: 6px 0;
+    min-width: 150px;
+    max-height: 60vh;
+    overflow-y: auto;
+    display: none;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+    -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+  }
+  #langPanel.open { display: block; }
+  .lang-opt {
+    display: block;
+    width: 100%;
+    padding: 7px 16px;
+    background: transparent;
+    border: none;
+    color: #888;
+    font: inherit;
+    font-size: 11.5px;
+    text-align: left;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: background 0.12s, color 0.12s;
+  }
+  .lang-opt:hover { background: rgba(255, 255, 255, 0.04); color: #d8d8d8; }
+  .lang-opt.active { color: #fff; background: rgba(255, 255, 255, 0.05); }
+
+  .msg-translation {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.1);
+  }
+  .msg-translation-label {
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .msg-translation-text {
+    font-size: 13.5px;
+    color: rgba(255, 255, 255, 0.75);
+    line-height: 1.5;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+  }
+
+  #dropBtn {
+    position: fixed;
+    bottom: 26px; left: 50%;
+    transform: translateX(-50%);
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    border: 1px solid #e8e8e8;
+    background: #ffffff;
+    color: #1a1a1a;
+    font-size: 24px;
+    font-weight: 200;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 600;
+    box-shadow: 0 2px 14px rgba(0,0,0,0.07);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 0 3px 0;
+  }
+  #dropBtn:hover {
+    transform: translateX(-50%) scale(1.07);
+    box-shadow: 0 3px 18px rgba(0,0,0,0.1);
+  }
+  #dropBtn:active { transform: translateX(-50%) scale(0.96); }
+  #dropBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  #geoMsg {
+    position: fixed; inset: 0;
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(3px);
+    -webkit-backdrop-filter: blur(3px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+  }
+  #geoMsg.open { display: flex; }
+  .geo-card {
+    background: #fff;
+    border: 1px solid #ececec;
+    border-radius: 6px;
+    padding: 22px 24px 18px;
+    max-width: 340px;
+    text-align: center;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+  }
+  .geo-text {
+    font-size: 13px;
+    color: #555;
+    line-height: 1.55;
+    margin-bottom: 16px;
+  }
+
+  #zoomLabel {
+    position: fixed;
+    bottom: 14px; right: 14px;
+    z-index: 500;
+    font-size: 9.5px;
+    color: #aaa;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: rgba(255,255,255,0.85);
+    padding: 4px 10px;
+    border-radius: 100px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="title">Hello, World</div>
+
+<button id="langBtn" type="button" aria-label="translation language" aria-haspopup="true" aria-expanded="false">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M3 12h18"/>
+    <path d="M12 3a14 14 0 0 1 0 18"/>
+    <path d="M12 3a14 14 0 0 0 0 18"/>
+  </svg>
+</button>
+<div id="langPanel" role="menu" aria-labelledby="langBtn"></div>
+
+<div id="map"></div>
+<div id="hint" class="gone"></div>
+
+<div id="resetTimer" aria-live="off"></div>
+
+<button id="dropBtn" type="button" aria-label="leave a message">+</button>
+
+
+<div id="geoMsg" role="dialog" aria-modal="true">
+  <div class="geo-card">
+    <div class="geo-text">Hello, World needs your real location to participate. You can still browse and read messages without sharing yours.</div>
+    <button class="btn" id="geoDismiss" type="button">ok</button>
+  </div>
+</div>
+
+<div id="compose" role="dialog" aria-modal="true">
+  <div class="compose-card">
+    <div class="compose-loc" id="composeLoc">somewhere</div>
+    <textarea id="composeText" maxlength="280" placeholder="say something to the world..."></textarea>
+    <div class="mood-picker" id="moodPicker"></div>
+    <div class="photo-row">
+      <button id="photoBtn" type="button" class="photo-btn" hidden>+ photo</button>
+      <div id="photoPreview" class="photo-preview" hidden>
+        <img id="photoPreviewImg" alt="" />
+        <button id="photoRemove" type="button" class="photo-remove" aria-label="remove photo">&times;</button>
+      </div>
+    </div>
+    <input type="file" id="photoInput" accept="image/*" capture="environment" hidden />
+    <div id="composeError" class="compose-error" hidden></div>
+    <div class="compose-actions">
+      <div class="counter" id="counter">280</div>
+      <div class="btn-row">
+        <button class="btn" id="cancelBtn" type="button">cancel</button>
+        <button class="btn primary" id="sendBtn" type="button" disabled>send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+"use strict";
+
+// ───────────── MOODS ─────────────
+const MOODS = [
+  { id: "joyful",   name: "joyful",   color: "#F5B842" },
+  { id: "calm",     name: "calm",     color: "#5BBED4" },
+  { id: "anxious",  name: "anxious",  color: "#E88A3D" },
+  { id: "angry",    name: "angry",    color: "#D85050" },
+  { id: "sad",      name: "sad",      color: "#7866D9" },
+  { id: "hopeful",  name: "hopeful",  color: "#4DB58E" },
+  { id: "curious",  name: "curious",  color: "#B576E0" },
+  { id: "lonely",   name: "lonely",   color: "#7D8FA8" },
+  { id: "grateful", name: "grateful", color: "#ED7AA0" }
+];
+const MOOD_BY_ID = Object.fromEntries(MOODS.map(m => [m.id, m]));
+
+// ───────────── CITY DATABASE (for nearest-city labeling) ─────────────
+const CITIES = [
+  { name: "Portland, OR", lat: 45.5152, lng: -122.6784 },
+  { name: "Seattle, WA", lat: 47.6062, lng: -122.3321 },
+  { name: "San Francisco, CA", lat: 37.7749, lng: -122.4194 },
+  { name: "Los Angeles, CA", lat: 34.0522, lng: -118.2437 },
+  { name: "San Diego, CA", lat: 32.7157, lng: -117.1611 },
+  { name: "Las Vegas, NV", lat: 36.1716, lng: -115.1391 },
+  { name: "Phoenix, AZ", lat: 33.4484, lng: -112.0740 },
+  { name: "Albuquerque, NM", lat: 35.0844, lng: -106.6504 },
+  { name: "Salt Lake City, UT", lat: 40.7608, lng: -111.8910 },
+  { name: "Denver, CO", lat: 39.7392, lng: -104.9903 },
+  { name: "Boise, ID", lat: 43.6150, lng: -116.2023 },
+  { name: "Anchorage, AK", lat: 61.2181, lng: -149.9003 },
+  { name: "Honolulu, HI", lat: 21.3069, lng: -157.8583 },
+  { name: "Minneapolis, MN", lat: 44.9778, lng: -93.2650 },
+  { name: "Chicago, IL", lat: 41.8781, lng: -87.6298 },
+  { name: "Milwaukee, WI", lat: 43.0389, lng: -87.9065 },
+  { name: "St. Louis, MO", lat: 38.6270, lng: -90.1994 },
+  { name: "Kansas City, MO", lat: 39.0997, lng: -94.5786 },
+  { name: "Indianapolis, IN", lat: 39.7684, lng: -86.1581 },
+  { name: "Nashville, TN", lat: 36.1627, lng: -86.7816 },
+  { name: "Memphis, TN", lat: 35.1495, lng: -90.0490 },
+  { name: "Detroit, MI", lat: 42.3314, lng: -83.0458 },
+  { name: "Cleveland, OH", lat: 41.4993, lng: -81.6944 },
+  { name: "Pittsburgh, PA", lat: 40.4406, lng: -79.9959 },
+  { name: "Philadelphia, PA", lat: 39.9526, lng: -75.1652 },
+  { name: "New York, NY", lat: 40.7128, lng: -74.0060 },
+  { name: "Brooklyn, NY", lat: 40.6782, lng: -73.9442 },
+  { name: "Boston, MA", lat: 42.3601, lng: -71.0589 },
+  { name: "Burlington, VT", lat: 44.4759, lng: -73.2121 },
+  { name: "Washington, DC", lat: 38.9072, lng: -77.0369 },
+  { name: "Charlotte, NC", lat: 35.2271, lng: -80.8431 },
+  { name: "Atlanta, GA", lat: 33.7490, lng: -84.3880 },
+  { name: "Miami, FL", lat: 25.7617, lng: -80.1918 },
+  { name: "New Orleans, LA", lat: 29.9511, lng: -90.0715 },
+  { name: "Houston, TX", lat: 29.7604, lng: -95.3698 },
+  { name: "Dallas, TX", lat: 32.7767, lng: -96.7970 },
+  { name: "Austin, TX", lat: 30.2672, lng: -97.7431 },
+  { name: "El Paso, TX", lat: 31.7619, lng: -106.4850 },
+  { name: "Vancouver, Canada", lat: 49.2827, lng: -123.1207 },
+  { name: "Calgary, Canada", lat: 51.0447, lng: -114.0719 },
+  { name: "Edmonton, Canada", lat: 53.5461, lng: -113.4938 },
+  { name: "Winnipeg, Canada", lat: 49.8951, lng: -97.1384 },
+  { name: "Toronto, Canada", lat: 43.6532, lng: -79.3832 },
+  { name: "Ottawa, Canada", lat: 45.4215, lng: -75.6972 },
+  { name: "Montreal, Canada", lat: 45.5017, lng: -73.5673 },
+  { name: "Quebec City, Canada", lat: 46.8139, lng: -71.2080 },
+  { name: "Halifax, Canada", lat: 44.6488, lng: -63.5752 },
+  { name: "St. John's, Canada", lat: 47.5615, lng: -52.7126 },
+  { name: "Yellowknife, Canada", lat: 62.4540, lng: -114.3718 },
+  { name: "Mexico City, Mexico", lat: 19.4326, lng: -99.1332 },
+  { name: "Guadalajara, Mexico", lat: 20.6597, lng: -103.3496 },
+  { name: "Monterrey, Mexico", lat: 25.6866, lng: -100.3161 },
+  { name: "Tijuana, Mexico", lat: 32.5149, lng: -117.0382 },
+  { name: "Mérida, Mexico", lat: 20.9674, lng: -89.5926 },
+  { name: "Oaxaca, Mexico", lat: 17.0732, lng: -96.7266 },
+  { name: "Havana, Cuba", lat: 23.1136, lng: -82.3666 },
+  { name: "Santo Domingo, DR", lat: 18.4861, lng: -69.9312 },
+  { name: "San Juan, Puerto Rico", lat: 18.4655, lng: -66.1057 },
+  { name: "Kingston, Jamaica", lat: 17.9714, lng: -76.7936 },
+  { name: "Port-au-Prince, Haiti", lat: 18.5944, lng: -72.3074 },
+  { name: "Guatemala City, Guatemala", lat: 14.6349, lng: -90.5069 },
+  { name: "San Salvador, El Salvador", lat: 13.6929, lng: -89.2182 },
+  { name: "Tegucigalpa, Honduras", lat: 14.0723, lng: -87.1921 },
+  { name: "Managua, Nicaragua", lat: 12.1149, lng: -86.2362 },
+  { name: "San José, Costa Rica", lat: 9.9281, lng: -84.0907 },
+  { name: "Panama City, Panama", lat: 8.9824, lng: -79.5199 },
+  { name: "Bogotá, Colombia", lat: 4.7110, lng: -74.0721 },
+  { name: "Medellín, Colombia", lat: 6.2442, lng: -75.5812 },
+  { name: "Cartagena, Colombia", lat: 10.3910, lng: -75.4794 },
+  { name: "Cali, Colombia", lat: 3.4516, lng: -76.5320 },
+  { name: "Caracas, Venezuela", lat: 10.4806, lng: -66.9036 },
+  { name: "Quito, Ecuador", lat: -0.1807, lng: -78.4678 },
+  { name: "Guayaquil, Ecuador", lat: -2.1709, lng: -79.9224 },
+  { name: "Lima, Peru", lat: -12.0464, lng: -77.0428 },
+  { name: "Cusco, Peru", lat: -13.5319, lng: -71.9675 },
+  { name: "La Paz, Bolivia", lat: -16.4897, lng: -68.1193 },
+  { name: "Asunción, Paraguay", lat: -25.2637, lng: -57.5759 },
+  { name: "Santiago, Chile", lat: -33.4489, lng: -70.6693 },
+  { name: "Valparaíso, Chile", lat: -33.0472, lng: -71.6127 },
+  { name: "Buenos Aires, Argentina", lat: -34.6037, lng: -58.3816 },
+  { name: "Córdoba, Argentina", lat: -31.4201, lng: -64.1888 },
+  { name: "Rosario, Argentina", lat: -32.9442, lng: -60.6505 },
+  { name: "Mendoza, Argentina", lat: -32.8908, lng: -68.8272 },
+  { name: "Montevideo, Uruguay", lat: -34.9011, lng: -56.1645 },
+  { name: "São Paulo, Brazil", lat: -23.5505, lng: -46.6333 },
+  { name: "Rio de Janeiro, Brazil", lat: -22.9068, lng: -43.1729 },
+  { name: "Brasília, Brazil", lat: -15.7942, lng: -47.8822 },
+  { name: "Salvador, Brazil", lat: -12.9714, lng: -38.5014 },
+  { name: "Recife, Brazil", lat: -8.0476, lng: -34.8770 },
+  { name: "Belo Horizonte, Brazil", lat: -19.9167, lng: -43.9345 },
+  { name: "Curitiba, Brazil", lat: -25.4284, lng: -49.2733 },
+  { name: "Manaus, Brazil", lat: -3.1190, lng: -60.0217 },
+  { name: "Reykjavík, Iceland", lat: 64.1466, lng: -21.9426 },
+  { name: "Dublin, Ireland", lat: 53.3498, lng: -6.2603 },
+  { name: "Cork, Ireland", lat: 51.8985, lng: -8.4756 },
+  { name: "London, UK", lat: 51.5074, lng: -0.1278 },
+  { name: "Manchester, UK", lat: 53.4808, lng: -2.2426 },
+  { name: "Liverpool, UK", lat: 53.4084, lng: -2.9916 },
+  { name: "Bristol, UK", lat: 51.4545, lng: -2.5879 },
+  { name: "Glasgow, UK", lat: 55.8642, lng: -4.2518 },
+  { name: "Edinburgh, Scotland", lat: 55.9533, lng: -3.1883 },
+  { name: "Cardiff, UK", lat: 51.4816, lng: -3.1791 },
+  { name: "Belfast, UK", lat: 54.5973, lng: -5.9301 },
+  { name: "Paris, France", lat: 48.8566, lng: 2.3522 },
+  { name: "Lyon, France", lat: 45.7640, lng: 4.8357 },
+  { name: "Marseille, France", lat: 43.2965, lng: 5.3698 },
+  { name: "Nice, France", lat: 43.7102, lng: 7.2620 },
+  { name: "Bordeaux, France", lat: 44.8378, lng: -0.5792 },
+  { name: "Toulouse, France", lat: 43.6047, lng: 1.4442 },
+  { name: "Strasbourg, France", lat: 48.5734, lng: 7.7521 },
+  { name: "Brussels, Belgium", lat: 50.8503, lng: 4.3517 },
+  { name: "Antwerp, Belgium", lat: 51.2194, lng: 4.4025 },
+  { name: "Amsterdam, Netherlands", lat: 52.3676, lng: 4.9041 },
+  { name: "Rotterdam, Netherlands", lat: 51.9244, lng: 4.4777 },
+  { name: "The Hague, Netherlands", lat: 52.0705, lng: 4.3007 },
+  { name: "Berlin, Germany", lat: 52.5200, lng: 13.4050 },
+  { name: "Hamburg, Germany", lat: 53.5511, lng: 9.9937 },
+  { name: "Munich, Germany", lat: 48.1351, lng: 11.5820 },
+  { name: "Cologne, Germany", lat: 50.9375, lng: 6.9603 },
+  { name: "Frankfurt, Germany", lat: 50.1109, lng: 8.6821 },
+  { name: "Vienna, Austria", lat: 48.2082, lng: 16.3738 },
+  { name: "Salzburg, Austria", lat: 47.8095, lng: 13.0550 },
+  { name: "Zurich, Switzerland", lat: 47.3769, lng: 8.5417 },
+  { name: "Geneva, Switzerland", lat: 46.2044, lng: 6.1432 },
+  { name: "Bern, Switzerland", lat: 46.9480, lng: 7.4474 },
+  { name: "Madrid, Spain", lat: 40.4168, lng: -3.7038 },
+  { name: "Barcelona, Spain", lat: 41.3851, lng: 2.1734 },
+  { name: "Seville, Spain", lat: 37.3891, lng: -5.9845 },
+  { name: "Valencia, Spain", lat: 39.4699, lng: -0.3763 },
+  { name: "Bilbao, Spain", lat: 43.2630, lng: -2.9350 },
+  { name: "Granada, Spain", lat: 37.1773, lng: -3.5986 },
+  { name: "Lisbon, Portugal", lat: 38.7223, lng: -9.1393 },
+  { name: "Porto, Portugal", lat: 41.1579, lng: -8.6291 },
+  { name: "Rome, Italy", lat: 41.9028, lng: 12.4964 },
+  { name: "Milan, Italy", lat: 45.4642, lng: 9.1900 },
+  { name: "Naples, Italy", lat: 40.8518, lng: 14.2681 },
+  { name: "Florence, Italy", lat: 43.7696, lng: 11.2558 },
+  { name: "Venice, Italy", lat: 45.4408, lng: 12.3155 },
+  { name: "Turin, Italy", lat: 45.0703, lng: 7.6869 },
+  { name: "Bologna, Italy", lat: 44.4949, lng: 11.3426 },
+  { name: "Palermo, Italy", lat: 38.1157, lng: 13.3615 },
+  { name: "Stockholm, Sweden", lat: 59.3293, lng: 18.0686 },
+  { name: "Gothenburg, Sweden", lat: 57.7089, lng: 11.9746 },
+  { name: "Oslo, Norway", lat: 59.9139, lng: 10.7522 },
+  { name: "Bergen, Norway", lat: 60.3913, lng: 5.3221 },
+  { name: "Tromsø, Norway", lat: 69.6492, lng: 18.9553 },
+  { name: "Copenhagen, Denmark", lat: 55.6761, lng: 12.5683 },
+  { name: "Aarhus, Denmark", lat: 56.1629, lng: 10.2039 },
+  { name: "Helsinki, Finland", lat: 60.1699, lng: 24.9384 },
+  { name: "Tampere, Finland", lat: 61.4978, lng: 23.7610 },
+  { name: "Tallinn, Estonia", lat: 59.4370, lng: 24.7536 },
+  { name: "Riga, Latvia", lat: 56.9496, lng: 24.1052 },
+  { name: "Vilnius, Lithuania", lat: 54.6872, lng: 25.2797 },
+  { name: "Warsaw, Poland", lat: 52.2297, lng: 21.0122 },
+  { name: "Kraków, Poland", lat: 50.0647, lng: 19.9450 },
+  { name: "Gdańsk, Poland", lat: 54.3520, lng: 18.6466 },
+  { name: "Prague, Czech Republic", lat: 50.0755, lng: 14.4378 },
+  { name: "Brno, Czech Republic", lat: 49.1951, lng: 16.6068 },
+  { name: "Bratislava, Slovakia", lat: 48.1486, lng: 17.1077 },
+  { name: "Budapest, Hungary", lat: 47.4979, lng: 19.0402 },
+  { name: "Ljubljana, Slovenia", lat: 46.0569, lng: 14.5058 },
+  { name: "Zagreb, Croatia", lat: 45.8150, lng: 15.9819 },
+  { name: "Sarajevo, Bosnia", lat: 43.8563, lng: 18.4131 },
+  { name: "Belgrade, Serbia", lat: 44.7866, lng: 20.4489 },
+  { name: "Sofia, Bulgaria", lat: 42.6977, lng: 23.3219 },
+  { name: "Bucharest, Romania", lat: 44.4268, lng: 26.1025 },
+  { name: "Cluj-Napoca, Romania", lat: 46.7712, lng: 23.6236 },
+  { name: "Skopje, North Macedonia", lat: 41.9981, lng: 21.4254 },
+  { name: "Tirana, Albania", lat: 41.3275, lng: 19.8187 },
+  { name: "Athens, Greece", lat: 37.9838, lng: 23.7275 },
+  { name: "Thessaloniki, Greece", lat: 40.6401, lng: 22.9444 },
+  { name: "Istanbul, Turkey", lat: 41.0082, lng: 28.9784 },
+  { name: "Ankara, Turkey", lat: 39.9334, lng: 32.8597 },
+  { name: "Izmir, Turkey", lat: 38.4192, lng: 27.1287 },
+  { name: "Kyiv, Ukraine", lat: 50.4501, lng: 30.5234 },
+  { name: "Lviv, Ukraine", lat: 49.8397, lng: 24.0297 },
+  { name: "Odesa, Ukraine", lat: 46.4825, lng: 30.7233 },
+  { name: "Minsk, Belarus", lat: 53.9006, lng: 27.5590 },
+  { name: "Moscow, Russia", lat: 55.7558, lng: 37.6173 },
+  { name: "St. Petersburg, Russia", lat: 59.9343, lng: 30.3351 },
+  { name: "Novosibirsk, Russia", lat: 55.0084, lng: 82.9357 },
+  { name: "Vladivostok, Russia", lat: 43.1198, lng: 131.8869 },
+  { name: "Tbilisi, Georgia", lat: 41.7151, lng: 44.8271 },
+  { name: "Yerevan, Armenia", lat: 40.1872, lng: 44.5152 },
+  { name: "Baku, Azerbaijan", lat: 40.4093, lng: 49.8671 },
+  { name: "Tehran, Iran", lat: 35.6892, lng: 51.3890 },
+  { name: "Isfahan, Iran", lat: 32.6546, lng: 51.6680 },
+  { name: "Baghdad, Iraq", lat: 33.3152, lng: 44.3661 },
+  { name: "Damascus, Syria", lat: 33.5138, lng: 36.2765 },
+  { name: "Beirut, Lebanon", lat: 33.8938, lng: 35.5018 },
+  { name: "Amman, Jordan", lat: 31.9454, lng: 35.9284 },
+  { name: "Jerusalem", lat: 31.7683, lng: 35.2137 },
+  { name: "Tel Aviv, Israel", lat: 32.0853, lng: 34.7818 },
+  { name: "Riyadh, Saudi Arabia", lat: 24.7136, lng: 46.6753 },
+  { name: "Jeddah, Saudi Arabia", lat: 21.4858, lng: 39.1925 },
+  { name: "Doha, Qatar", lat: 25.2854, lng: 51.5310 },
+  { name: "Dubai, UAE", lat: 25.2048, lng: 55.2708 },
+  { name: "Abu Dhabi, UAE", lat: 24.4539, lng: 54.3773 },
+  { name: "Muscat, Oman", lat: 23.5859, lng: 58.4059 },
+  { name: "Kuwait City, Kuwait", lat: 29.3759, lng: 47.9774 },
+  { name: "Manama, Bahrain", lat: 26.2285, lng: 50.5860 },
+  { name: "Sana'a, Yemen", lat: 15.3694, lng: 44.1910 },
+  { name: "Cairo, Egypt", lat: 30.0444, lng: 31.2357 },
+  { name: "Alexandria, Egypt", lat: 31.2001, lng: 29.9187 },
+  { name: "Tripoli, Libya", lat: 32.8872, lng: 13.1913 },
+  { name: "Tunis, Tunisia", lat: 36.8065, lng: 10.1815 },
+  { name: "Algiers, Algeria", lat: 36.7538, lng: 3.0588 },
+  { name: "Casablanca, Morocco", lat: 33.5731, lng: -7.5898 },
+  { name: "Marrakech, Morocco", lat: 31.6295, lng: -7.9811 },
+  { name: "Rabat, Morocco", lat: 34.0209, lng: -6.8416 },
+  { name: "Khartoum, Sudan", lat: 15.5007, lng: 32.5599 },
+  { name: "Addis Ababa, Ethiopia", lat: 9.0320, lng: 38.7469 },
+  { name: "Nairobi, Kenya", lat: -1.2921, lng: 36.8219 },
+  { name: "Mombasa, Kenya", lat: -4.0435, lng: 39.6682 },
+  { name: "Kampala, Uganda", lat: 0.3476, lng: 32.5825 },
+  { name: "Kigali, Rwanda", lat: -1.9441, lng: 30.0619 },
+  { name: "Dar es Salaam, Tanzania", lat: -6.7924, lng: 39.2083 },
+  { name: "Lusaka, Zambia", lat: -15.3875, lng: 28.3228 },
+  { name: "Harare, Zimbabwe", lat: -17.8252, lng: 31.0335 },
+  { name: "Maputo, Mozambique", lat: -25.9692, lng: 32.5732 },
+  { name: "Antananarivo, Madagascar", lat: -18.8792, lng: 47.5079 },
+  { name: "Johannesburg, South Africa", lat: -26.2041, lng: 28.0473 },
+  { name: "Cape Town, South Africa", lat: -33.9249, lng: 18.4241 },
+  { name: "Durban, South Africa", lat: -29.8587, lng: 31.0218 },
+  { name: "Windhoek, Namibia", lat: -22.5594, lng: 17.0832 },
+  { name: "Luanda, Angola", lat: -8.8390, lng: 13.2894 },
+  { name: "Kinshasa, DR Congo", lat: -4.4419, lng: 15.2663 },
+  { name: "Yaoundé, Cameroon", lat: 3.8480, lng: 11.5021 },
+  { name: "Lagos, Nigeria", lat: 6.5244, lng: 3.3792 },
+  { name: "Abuja, Nigeria", lat: 9.0765, lng: 7.3986 },
+  { name: "Accra, Ghana", lat: 5.6037, lng: -0.1870 },
+  { name: "Abidjan, Ivory Coast", lat: 5.3600, lng: -4.0083 },
+  { name: "Bamako, Mali", lat: 12.6392, lng: -8.0029 },
+  { name: "Dakar, Senegal", lat: 14.7167, lng: -17.4677 },
+  { name: "Karachi, Pakistan", lat: 24.8607, lng: 67.0011 },
+  { name: "Lahore, Pakistan", lat: 31.5204, lng: 74.3587 },
+  { name: "Islamabad, Pakistan", lat: 33.6844, lng: 73.0479 },
+  { name: "Mumbai, India", lat: 19.0760, lng: 72.8777 },
+  { name: "Delhi, India", lat: 28.6139, lng: 77.2090 },
+  { name: "Bengaluru, India", lat: 12.9716, lng: 77.5946 },
+  { name: "Chennai, India", lat: 13.0827, lng: 80.2707 },
+  { name: "Kolkata, India", lat: 22.5726, lng: 88.3639 },
+  { name: "Hyderabad, India", lat: 17.3850, lng: 78.4867 },
+  { name: "Pune, India", lat: 18.5204, lng: 73.8567 },
+  { name: "Jaipur, India", lat: 26.9124, lng: 75.7873 },
+  { name: "Goa, India", lat: 15.2993, lng: 74.1240 },
+  { name: "Kathmandu, Nepal", lat: 27.7172, lng: 85.3240 },
+  { name: "Thimphu, Bhutan", lat: 27.4728, lng: 89.6390 },
+  { name: "Dhaka, Bangladesh", lat: 23.8103, lng: 90.4125 },
+  { name: "Chittagong, Bangladesh", lat: 22.3569, lng: 91.7832 },
+  { name: "Colombo, Sri Lanka", lat: 6.9271, lng: 79.8612 },
+  { name: "Tashkent, Uzbekistan", lat: 41.2995, lng: 69.2401 },
+  { name: "Samarkand, Uzbekistan", lat: 39.6270, lng: 66.9750 },
+  { name: "Almaty, Kazakhstan", lat: 43.2220, lng: 76.8512 },
+  { name: "Astana, Kazakhstan", lat: 51.1605, lng: 71.4704 },
+  { name: "Bishkek, Kyrgyzstan", lat: 42.8746, lng: 74.5698 },
+  { name: "Kabul, Afghanistan", lat: 34.5553, lng: 69.2075 },
+  { name: "Ulaanbaatar, Mongolia", lat: 47.8864, lng: 106.9057 },
+  { name: "Beijing, China", lat: 39.9042, lng: 116.4074 },
+  { name: "Shanghai, China", lat: 31.2304, lng: 121.4737 },
+  { name: "Guangzhou, China", lat: 23.1291, lng: 113.2644 },
+  { name: "Shenzhen, China", lat: 22.5431, lng: 114.0579 },
+  { name: "Chengdu, China", lat: 30.5728, lng: 104.0668 },
+  { name: "Xi'an, China", lat: 34.3416, lng: 108.9398 },
+  { name: "Chongqing, China", lat: 29.4316, lng: 106.9123 },
+  { name: "Hangzhou, China", lat: 30.2741, lng: 120.1551 },
+  { name: "Lhasa, Tibet", lat: 29.6520, lng: 91.1721 },
+  { name: "Hong Kong", lat: 22.3193, lng: 114.1694 },
+  { name: "Macau", lat: 22.1987, lng: 113.5439 },
+  { name: "Taipei, Taiwan", lat: 25.0330, lng: 121.5654 },
+  { name: "Kaohsiung, Taiwan", lat: 22.6273, lng: 120.3014 },
+  { name: "Seoul, South Korea", lat: 37.5665, lng: 126.9780 },
+  { name: "Busan, South Korea", lat: 35.1796, lng: 129.0756 },
+  { name: "Pyongyang, North Korea", lat: 39.0392, lng: 125.7625 },
+  { name: "Tokyo, Japan", lat: 35.6762, lng: 139.6503 },
+  { name: "Osaka, Japan", lat: 34.6937, lng: 135.5023 },
+  { name: "Kyoto, Japan", lat: 35.0116, lng: 135.7681 },
+  { name: "Sapporo, Japan", lat: 43.0618, lng: 141.3545 },
+  { name: "Fukuoka, Japan", lat: 33.5904, lng: 130.4017 },
+  { name: "Hiroshima, Japan", lat: 34.3853, lng: 132.4553 },
+  { name: "Bangkok, Thailand", lat: 13.7563, lng: 100.5018 },
+  { name: "Chiang Mai, Thailand", lat: 18.7883, lng: 98.9853 },
+  { name: "Phuket, Thailand", lat: 7.8804, lng: 98.3923 },
+  { name: "Vientiane, Laos", lat: 17.9757, lng: 102.6331 },
+  { name: "Phnom Penh, Cambodia", lat: 11.5564, lng: 104.9282 },
+  { name: "Siem Reap, Cambodia", lat: 13.3671, lng: 103.8448 },
+  { name: "Hanoi, Vietnam", lat: 21.0285, lng: 105.8542 },
+  { name: "Ho Chi Minh City, Vietnam", lat: 10.8231, lng: 106.6297 },
+  { name: "Da Nang, Vietnam", lat: 16.0544, lng: 108.2022 },
+  { name: "Yangon, Myanmar", lat: 16.8661, lng: 96.1951 },
+  { name: "Kuala Lumpur, Malaysia", lat: 3.1390, lng: 101.6869 },
+  { name: "Penang, Malaysia", lat: 5.4164, lng: 100.3327 },
+  { name: "Singapore", lat: 1.3521, lng: 103.8198 },
+  { name: "Jakarta, Indonesia", lat: -6.2088, lng: 106.8456 },
+  { name: "Surabaya, Indonesia", lat: -7.2575, lng: 112.7521 },
+  { name: "Bali, Indonesia", lat: -8.4095, lng: 115.1889 },
+  { name: "Bandung, Indonesia", lat: -6.9175, lng: 107.6191 },
+  { name: "Manila, Philippines", lat: 14.5995, lng: 120.9842 },
+  { name: "Cebu, Philippines", lat: 10.3157, lng: 123.8854 },
+  { name: "Davao, Philippines", lat: 7.1907, lng: 125.4553 },
+  { name: "Sydney, Australia", lat: -33.8688, lng: 151.2093 },
+  { name: "Melbourne, Australia", lat: -37.8136, lng: 144.9631 },
+  { name: "Brisbane, Australia", lat: -27.4698, lng: 153.0251 },
+  { name: "Perth, Australia", lat: -31.9505, lng: 115.8605 },
+  { name: "Adelaide, Australia", lat: -34.9285, lng: 138.6007 },
+  { name: "Hobart, Australia", lat: -42.8821, lng: 147.3272 },
+  { name: "Darwin, Australia", lat: -12.4634, lng: 130.8456 },
+  { name: "Cairns, Australia", lat: -16.9203, lng: 145.7710 },
+  { name: "Auckland, New Zealand", lat: -36.8485, lng: 174.7633 },
+  { name: "Wellington, New Zealand", lat: -41.2865, lng: 174.7762 },
+  { name: "Christchurch, New Zealand", lat: -43.5320, lng: 172.6362 },
+  { name: "Queenstown, New Zealand", lat: -45.0312, lng: 168.6626 },
+  { name: "Suva, Fiji", lat: -18.1416, lng: 178.4419 },
+  { name: "Port Moresby, PNG", lat: -9.4438, lng: 147.1803 }
+];
+
+// ───────────── SEED MESSAGES (100) ─────────────
+const SEED = [
+  // Africa (12)
+  { lat:  6.5244, lng:   3.3792, loc: "Lagos, Nigeria",      mood: "anxious",  text: "stuck in traffic for three hours. heard a great podcast at least" },
+  { lat: 30.0444, lng:  31.2357, loc: "Cairo, Egypt",        mood: "hopeful",  text: "the dawn call to prayer never stops getting me" },
+  { lat:-33.9249, lng:  18.4241, loc: "Cape Town, South Africa", mood: "calm", text: "table mountain wore its tablecloth today" },
+  { lat: 31.6295, lng:  -7.9811, loc: "Marrakech, Morocco",  mood: "curious",  text: "got lost in the medina on purpose this morning" },
+  { lat: 33.5731, lng:  -7.5898, loc: "Casablanca, Morocco", mood: "calm",     text: "café au lait by the sea, the day can begin" },
+  { lat: -1.2921, lng:  36.8219, loc: "Nairobi, Kenya",      mood: "joyful",   text: "the matatu was blasting old gospel and i sang along" },
+  { lat:  9.0320, lng:  38.7469, loc: "Addis Ababa, Ethiopia", mood: "calm",   text: "the coffee ceremony took two hours and i didn't check my phone once" },
+  { lat: -1.9441, lng:  30.0619, loc: "Kigali, Rwanda",      mood: "calm",     text: "the hills are quiet on sundays in a way you can feel" },
+  { lat:  5.6037, lng:  -0.1870, loc: "Accra, Ghana",        mood: "joyful",   text: "jollof rice party at my cousin's place tonight" },
+  { lat: 14.7167, lng: -17.4677, loc: "Dakar, Senegal",      mood: "hopeful",  text: "the sea sounds like home, even when nothing else does" },
+  { lat:-26.2041, lng:  28.0473, loc: "Johannesburg, South Africa", mood: "anxious", text: "the load shedding hit at the worst time again" },
+  { lat: 36.8065, lng:  10.1815, loc: "Tunis, Tunisia",      mood: "grateful", text: "my grandmother taught me how to make brik today" },
+
+  // Asia (28)
+  { lat: 35.6762, lng: 139.6503, loc: "Tokyo, Japan",        mood: "calm",     text: "コンビニのおにぎり、今日も完璧だった" },
+  { lat: 19.0760, lng:  72.8777, loc: "Mumbai, India",       mood: "anxious",  text: "monsoon is two weeks late this year" },
+  { lat: 21.0285, lng: 105.8542, loc: "Hanoi, Vietnam",      mood: "grateful", text: "the phở at the corner stand healed something today" },
+  { lat: 37.5665, lng: 126.9780, loc: "Seoul, South Korea",  mood: "lonely",   text: "혼자 먹는 라면이 제일 맛있다" },
+  { lat: 13.7563, lng: 100.5018, loc: "Bangkok, Thailand",   mood: "joyful",   text: "ate som tam at 3am from a street cart. perfect life" },
+  { lat:  1.3521, lng: 103.8198, loc: "Singapore",           mood: "calm",     text: "hawker centre at 11pm, eating chili crab alone, perfect" },
+  { lat: 22.3193, lng: 114.1694, loc: "Hong Kong",           mood: "anxious",  text: "this city eats sleep. i don't mind anymore" },
+  { lat: 14.5995, lng: 120.9842, loc: "Manila, Philippines", mood: "joyful",   text: "jeepney was karaoke today. truly blessed" },
+  { lat: -6.2088, lng: 106.8456, loc: "Jakarta, Indonesia",  mood: "anxious",  text: "macet parah dari pagi sampai sekarang" },
+  { lat:  3.1390, lng: 101.6869, loc: "Kuala Lumpur, Malaysia", mood: "joyful", text: "nasi lemak before sunrise hits different" },
+  { lat: 10.8231, lng: 106.6297, loc: "Ho Chi Minh City, Vietnam", mood: "curious", text: "ten thousand scooters and somehow no one crashes" },
+  { lat: 25.0330, lng: 121.5654, loc: "Taipei, Taiwan",      mood: "joyful",   text: "night market, beef noodle, repeat. the rhythm of a tuesday" },
+  { lat: 39.9042, lng: 116.4074, loc: "Beijing, China",      mood: "curious",  text: "胡同里的猫比人还多" },
+  { lat: 31.2304, lng: 121.4737, loc: "Shanghai, China",     mood: "calm",     text: "外滩的灯光，每天看也看不腻" },
+  { lat: 24.8607, lng:  67.0011, loc: "Karachi, Pakistan",   mood: "calm",     text: "chai by the sea, life is alright today" },
+  { lat: 23.8103, lng:  90.4125, loc: "Dhaka, Bangladesh",   mood: "joyful",   text: "rickshaw in the rain. the best ride in the world" },
+  { lat: 27.7172, lng:  85.3240, loc: "Kathmandu, Nepal",    mood: "grateful", text: "saw the himalayas above the smog this morning. a rare gift" },
+  { lat:  6.9271, lng:  79.8612, loc: "Colombo, Sri Lanka",  mood: "calm",     text: "the sound of kottu being chopped on metal. that's home" },
+  { lat: 41.2995, lng:  69.2401, loc: "Tashkent, Uzbekistan", mood: "grateful", text: "plov is its own love language" },
+  { lat: 43.2220, lng:  76.8512, loc: "Almaty, Kazakhstan",  mood: "curious",  text: "apples are actually from here, did you know that" },
+  { lat: 47.8864, lng: 106.9057, loc: "Ulaanbaatar, Mongolia", mood: "lonely", text: "the wind here cuts through every layer i own" },
+  { lat: 35.6892, lng:  51.3890, loc: "Tehran, Iran",        mood: "sad",      text: "the snow on damavand made me homesick before i even left" },
+  { lat: 40.1872, lng:  44.5152, loc: "Yerevan, Armenia",    mood: "sad",      text: "ararat in the haze today, like a memory you can't reach" },
+  { lat: 41.7151, lng:  44.8271, loc: "Tbilisi, Georgia",    mood: "joyful",   text: "khachapuri for dinner. and breakfast. don't tell my mom" },
+  { lat: 28.6139, lng:  77.2090, loc: "Delhi, India",        mood: "anxious",  text: "the air today, i can taste it on my tongue" },
+  { lat: 12.9716, lng:  77.5946, loc: "Bengaluru, India",    mood: "hopeful",  text: "the team finally shipped the thing. nine months for this" },
+  { lat: 34.6937, lng: 135.5023, loc: "Osaka, Japan",        mood: "joyful",   text: "takoyaki at 2am, and a stranger offered me a beer" },
+  { lat: 29.6520, lng:  91.1721, loc: "Lhasa, Tibet",        mood: "calm",     text: "the air is thin and so are my worries" },
+
+  // Europe (28)
+  { lat: 52.5200, lng:  13.4050, loc: "Berlin, Germany",     mood: "curious",  text: "der u-bahn riecht heute nach sommer" },
+  { lat: 64.1466, lng: -21.9426, loc: "Reykjavík, Iceland",  mood: "joyful",   text: "saw the northern lights from my kitchen window. still magic" },
+  { lat: 59.3293, lng:  18.0686, loc: "Stockholm, Sweden",   mood: "lonely",   text: "had fika alone today. needed it more than i knew" },
+  { lat: 60.1699, lng:  24.9384, loc: "Helsinki, Finland",   mood: "calm",     text: "long winter dark, but somehow im fine" },
+  { lat: 41.0082, lng:  28.9784, loc: "Istanbul, Turkey",    mood: "curious",  text: "iki kıta arasında kayboldum yine" },
+  { lat: 53.3498, lng:  -6.2603, loc: "Dublin, Ireland",     mood: "joyful",   text: "had three pints with a man i'd never met before. that was a friend" },
+  { lat: 48.8566, lng:   2.3522, loc: "Paris, France",       mood: "anxious",  text: "j'ai oublié mon parapluie. encore" },
+  { lat: 40.4168, lng:  -3.7038, loc: "Madrid, Spain",       mood: "joyful",   text: "siesta sagrada hoy, jueves bendito" },
+  { lat: 50.0647, lng:  19.9450, loc: "Kraków, Poland",      mood: "grateful", text: "pierogi at midnight is its own kind of meal" },
+  { lat: 50.4501, lng:  30.5234, loc: "Kyiv, Ukraine",       mood: "hopeful",  text: "ще тут. ще живі. ще любимо" },
+  { lat: 55.9533, lng:  -3.1883, loc: "Edinburgh, Scotland", mood: "curious",  text: "the wind here has personality, like an old aunt" },
+  { lat: 38.7223, lng:  -9.1393, loc: "Lisbon, Portugal",    mood: "sad",      text: "a melancolia cabe num pastel de nata" },
+  { lat: 48.2082, lng:  16.3738, loc: "Vienna, Austria",     mood: "calm",     text: "kaffeehaus and three hours and a book. perfect day" },
+  { lat: 50.0755, lng:  14.4378, loc: "Prague, Czech Republic", mood: "joyful", text: "trdelník is touristy and i don't care anymore, it's mine" },
+  { lat: 47.4979, lng:  19.0402, loc: "Budapest, Hungary",   mood: "grateful", text: "the széchenyi baths fix everything that's wrong with me" },
+  { lat: 55.6761, lng:  12.5683, loc: "Copenhagen, Denmark", mood: "calm",     text: "biked to work in the rain. hygge or not, i chose this" },
+  { lat: 59.9139, lng:  10.7522, loc: "Oslo, Norway",        mood: "calm",     text: "the fjords are showing off this week" },
+  { lat: 52.3676, lng:   4.9041, loc: "Amsterdam, Netherlands", mood: "anxious", text: "almost got hit by a bike again. that's two close calls today" },
+  { lat: 47.3769, lng:   8.5417, loc: "Zurich, Switzerland", mood: "calm",     text: "the lake was glass this morning, mountains upside down in it" },
+  { lat: 41.9028, lng:  12.4964, loc: "Rome, Italy",         mood: "grateful", text: "ho preso il caffè in piedi al bar, come si deve" },
+  { lat: 41.3851, lng:   2.1734, loc: "Barcelona, Spain",    mood: "calm",     text: "el mar siempre está ahí. eso me salva" },
+  { lat: 40.8518, lng:  14.2681, loc: "Naples, Italy",       mood: "joyful",   text: "pizza margherita e basta. niente di più necessario" },
+  { lat: 44.7866, lng:  20.4489, loc: "Belgrade, Serbia",    mood: "calm",     text: "rakija and an old song, and that was enough tonight" },
+  { lat: 55.7558, lng:  37.6173, loc: "Moscow, Russia",      mood: "curious",  text: "метро как дворец, как всегда" },
+  { lat: 59.9343, lng:  30.3351, loc: "St. Petersburg, Russia", mood: "hopeful", text: "белые ночи скоро. не могу дождаться" },
+  { lat: 51.5074, lng:  -0.1278, loc: "London, UK",          mood: "lonely",   text: "rode the bus to the end of the line and back, just to think" },
+  { lat: 53.5511, lng:   9.9937, loc: "Hamburg, Germany",    mood: "sad",      text: "der hafen heute, grau wie alles" },
+  { lat: 37.9838, lng:  23.7275, loc: "Athens, Greece",      mood: "angry",    text: "another strike, another day i can't get to work" },
+
+  // North America (18)
+  { lat: 45.5152, lng:-122.6784, loc: "Portland, OR",        mood: "calm",     text: "the rain stopped for ten minutes today and i sat outside with my coffee" },
+  { lat: 19.4326, lng: -99.1332, loc: "Mexico City, Mexico", mood: "joyful",   text: "el tianguis de los domingos es lo mejor que tiene esta ciudad" },
+  { lat: 49.2827, lng:-123.1207, loc: "Vancouver, Canada",   mood: "anxious",  text: "raining for the 47th day. i've stopped counting really" },
+  { lat: 44.9778, lng: -93.2650, loc: "Minneapolis, MN",     mood: "joyful",   text: "negative twelve outside and i'm not even mad" },
+  { lat: 30.2672, lng: -97.7431, loc: "Austin, TX",          mood: "joyful",   text: "tacos for breakfast, lunch, and dinner. zero regrets" },
+  { lat: 40.6782, lng: -73.9442, loc: "Brooklyn, NY",        mood: "grateful", text: "subway musician played radiohead and i tipped him a 20" },
+  { lat: 42.3314, lng: -83.0458, loc: "Detroit, MI",         mood: "hopeful",  text: "the city is rebuilding itself. quietly. brick by brick" },
+  { lat: 29.9511, lng: -90.0715, loc: "New Orleans, LA",     mood: "joyful",   text: "second line down royal street. how do you not dance" },
+  { lat: 61.2181, lng:-149.9003, loc: "Anchorage, AK",       mood: "curious",  text: "moose in the driveway again. she's getting bold" },
+  { lat: 21.3069, lng:-157.8583, loc: "Honolulu, HI",        mood: "calm",     text: "the ocean is my coworker" },
+  { lat: 43.6532, lng: -79.3832, loc: "Toronto, Canada",     mood: "grateful", text: "subway smells like every country at once. i love it" },
+  { lat: 45.5017, lng: -73.5673, loc: "Montreal, Canada",    mood: "joyful",   text: "j'ai mangé une poutine à 4h du matin. aucun regret" },
+  { lat: 23.1136, lng: -82.3666, loc: "Havana, Cuba",        mood: "joyful",   text: "música en cada esquina, hasta en el silencio" },
+  { lat: 37.7749, lng:-122.4194, loc: "San Francisco, CA",   mood: "anxious",  text: "fog rolled in by noon and so did the dread" },
+  { lat: 34.0522, lng:-118.2437, loc: "Los Angeles, CA",     mood: "sad",      text: "traffic gave me time to think and i should not have" },
+  { lat: 47.6062, lng:-122.3321, loc: "Seattle, WA",         mood: "calm",     text: "ferry across the sound, just to clear my head" },
+  { lat: 41.8781, lng: -87.6298, loc: "Chicago, IL",         mood: "angry",    text: "el train was 40 minutes late and now i'm late too" },
+  { lat: 46.8139, lng: -71.2080, loc: "Quebec City, Canada", mood: "calm",     text: "neige fraîche sur le vieux-port" },
+
+  // South America (12)
+  { lat:-23.5505, lng: -46.6333, loc: "São Paulo, Brazil",       mood: "sad",      text: "saudade de algo que nunca vivi" },
+  { lat:-34.6037, lng: -58.3816, loc: "Buenos Aires, Argentina", mood: "calm",     text: "tomé mate solo en la plaza, escuchando a un viejo cantar tango" },
+  { lat:-22.9068, lng: -43.1729, loc: "Rio de Janeiro, Brazil",  mood: "grateful", text: "o pôr do sol em ipanema é uma religião" },
+  { lat:-12.0464, lng: -77.0428, loc: "Lima, Peru",              mood: "grateful", text: "el ceviche es un idioma de amor" },
+  { lat:  4.7110, lng: -74.0721, loc: "Bogotá, Colombia",        mood: "anxious",  text: "la lluvia llegó como si tuviera prisa hoy" },
+  { lat:-33.4489, lng: -70.6693, loc: "Santiago, Chile",         mood: "curious",  text: "los andes hoy están ahí, mostrando quién manda" },
+  { lat: -0.1807, lng: -78.4678, loc: "Quito, Ecuador",          mood: "calm",     text: "el sol pega fuerte a 2800 metros" },
+  { lat:-13.5319, lng: -71.9675, loc: "Cusco, Peru",             mood: "hopeful",  text: "the mountains know things i don't" },
+  { lat:  6.2442, lng: -75.5812, loc: "Medellín, Colombia",      mood: "joyful",   text: "la música no para. y no debería" },
+  { lat:-16.4897, lng: -68.1193, loc: "La Paz, Bolivia",         mood: "lonely",   text: "la altitud me sigue venciendo después de diez años" },
+  { lat:-12.9714, lng: -38.5014, loc: "Salvador, Brazil",        mood: "joyful",   text: "samba na rua, sempre samba na rua" },
+  { lat: 10.4806, lng: -66.9036, loc: "Caracas, Venezuela",      mood: "sad",      text: "extraño la ciudad que ya no existe" },
+
+  // Oceania (5)
+  { lat:-33.8688, lng: 151.2093, loc: "Sydney, Australia",   mood: "joyful",   text: "swam at bondi before work and somehow forgot every email i owe" },
+  { lat:-36.8485, lng: 174.7633, loc: "Auckland, New Zealand", mood: "calm",   text: "the sheep still outnumber us. as it should be" },
+  { lat:-37.8136, lng: 144.9631, loc: "Melbourne, Australia", mood: "calm",    text: "third coffee shop today, no shame" },
+  { lat:-41.2865, lng: 174.7762, loc: "Wellington, New Zealand", mood: "angry", text: "the wind blew my umbrella inside out for the third time today" },
+  { lat:-31.9505, lng: 115.8605, loc: "Perth, Australia",    mood: "calm",     text: "indian ocean sunset, all by myself" },
+
+  // Middle East (extra to fill 100)
+  { lat: 33.8938, lng:  35.5018, loc: "Beirut, Lebanon",     mood: "hopeful",  text: "بحب هالمدينة رغم كل شي صار" },
+  { lat: 31.7683, lng:  35.2137, loc: "Jerusalem",           mood: "calm",     text: "stones older than memory, and somehow still warm" },
+  { lat: 32.0853, lng:  34.7818, loc: "Tel Aviv, Israel",    mood: "joyful",   text: "the sunset off the beach makes everything feel survivable" },
+  { lat: 25.2048, lng:  55.2708, loc: "Dubai, UAE",          mood: "anxious",  text: "another desert summer, another reason to hide indoors" },
+  { lat: 25.2854, lng:  51.5310, loc: "Doha, Qatar",         mood: "curious",  text: "the souq still surprises me after all these years" },
+
+  // a few more for tone diversity to hit 100
+  { lat: 34.5553, lng:  69.2075, loc: "Kabul, Afghanistan",  mood: "sad",      text: "i miss the streets i grew up on" },
+  { lat: 53.4808, lng:  -2.2426, loc: "Manchester, UK",      mood: "angry",    text: "the rain doesn't ask permission, it just arrives" },
+
+  // ── Cluster-test seeds (dense regional clusters, 50 total) ──
+
+  // Western Europe (15)
+  { lat: 51.5270, lng:  -0.0780, loc: "London, UK",          mood: "joyful",   text: "found a perfect coffee shop in shoreditch this morning", photo: "https://picsum.photos/seed/hw-london-coffee/420/280" },
+  { lat: 51.5200, lng:  -0.1050, loc: "London, UK",          mood: "lonely",   text: "the tube is crowded and somehow nobody talks" },
+  { lat: 51.5150, lng:  -0.1300, loc: "London, UK",          mood: "anxious",  text: "interview in two hours, hands won't stop shaking" },
+  { lat: 51.5000, lng:  -0.1500, loc: "London, UK",          mood: "grateful", text: "my mum sent me a voice note today, made me cry" },
+  { lat: 48.8570, lng:   2.3410, loc: "Paris, France",       mood: "calm",     text: "watched the seine flow at golden hour", photo: "https://picsum.photos/seed/hw-paris-seine/420/280" },
+  { lat: 48.8640, lng:   2.3300, loc: "Paris, France",       mood: "curious",  text: "every café in this city has its own kind of silence" },
+  { lat: 48.8730, lng:   2.3560, loc: "Paris, France",       mood: "grateful", text: "first time my french teacher said i sounded local" },
+  { lat: 48.8470, lng:   2.3760, loc: "Paris, France",       mood: "anxious",  text: "rent is due and the freelance check still hasn't come" },
+  { lat: 52.5200, lng:  13.4050, loc: "Berlin, Germany",     mood: "hopeful",  text: "started over here three months ago and it's working" },
+  { lat: 52.5100, lng:  13.4200, loc: "Berlin, Germany",     mood: "sad",      text: "missing my old apartment in munich tonight" },
+  { lat: 52.4990, lng:  13.4350, loc: "Berlin, Germany",     mood: "joyful",   text: "berghain rejected me and i've never laughed harder" },
+  { lat: 52.3700, lng:   4.8920, loc: "Amsterdam, Netherlands", mood: "calm",  text: "biking along the canals at 7am, nobody else awake" },
+  { lat: 52.3600, lng:   4.9100, loc: "Amsterdam, Netherlands", mood: "curious", text: "everyone here greets their bike like an old friend" },
+  { lat: 40.4200, lng:  -3.7050, loc: "Madrid, Spain",       mood: "angry",    text: "el ruido del aire del vecino me está volviendo loco" },
+  { lat: 40.4120, lng:  -3.7100, loc: "Madrid, Spain",       mood: "joyful",   text: "tapas with strangers turned into 4am conversations" },
+
+  // Southeast Asia (10)
+  { lat: 13.7560, lng: 100.5020, loc: "Bangkok, Thailand",   mood: "joyful",   text: "street food at 11pm, life is so full", photo: "https://picsum.photos/seed/hw-bangkok-street/420/280" },
+  { lat: 13.7470, lng: 100.4900, loc: "Bangkok, Thailand",   mood: "calm",     text: "the temple was empty this morning, just me and the bells" },
+  { lat: 13.7640, lng: 100.5200, loc: "Bangkok, Thailand",   mood: "curious",  text: "talked to a monk who's been silent for six years" },
+  { lat:  1.3520, lng: 103.8200, loc: "Singapore",           mood: "anxious",  text: "everyone moves so fast here, can't keep up" },
+  { lat:  1.3450, lng: 103.8100, loc: "Singapore",           mood: "hopeful",  text: "got the offer letter today. moving to tanjong pagar" },
+  { lat:  1.3600, lng: 103.8300, loc: "Singapore",           mood: "calm",     text: "watching the planes land at changi from the rooftop", photo: "https://picsum.photos/seed/hw-singapore-sky/420/280" },
+  { lat: -6.2080, lng: 106.8460, loc: "Jakarta, Indonesia",  mood: "sad",      text: "stuck in traffic for two hours again" },
+  { lat: -6.2150, lng: 106.8350, loc: "Jakarta, Indonesia",  mood: "grateful", text: "my grandma made rendang for the whole family today" },
+  { lat: 14.6000, lng: 120.9840, loc: "Manila, Philippines", mood: "curious",  text: "a kid asked me what dreams are. i didn't have a good answer" },
+  { lat: 14.5900, lng: 120.9920, loc: "Manila, Philippines", mood: "lonely",   text: "rainy season hits different when you live alone" },
+
+  // US East Coast (10)
+  { lat: 40.7130, lng: -74.0060, loc: "New York, NY",        mood: "anxious",  text: "subway delays again. third time this week" },
+  { lat: 40.7850, lng: -73.9680, loc: "New York, NY",        mood: "joyful",   text: "saw a guy serenade his girlfriend with a sax in central park", photo: "https://picsum.photos/seed/hw-nyc-park/420/280" },
+  { lat: 40.7300, lng: -73.9980, loc: "New York, NY",        mood: "lonely",   text: "8 million people and nobody texts back" },
+  { lat: 40.7450, lng: -73.9900, loc: "New York, NY",        mood: "grateful", text: "stranger paid for my coffee this morning" },
+  { lat: 40.7140, lng: -74.0020, loc: "New York, NY",        mood: "joyful",   text: "got married at city hall today. just us and the witness" },
+  { lat: 42.3760, lng: -71.1170, loc: "Boston, MA",          mood: "curious",  text: "wonder how many books are in this harvard library tonight", photo: "https://picsum.photos/seed/hw-boston-library/420/280" },
+  { lat: 42.3600, lng: -71.0580, loc: "Boston, MA",          mood: "hopeful",  text: "first day of my phd. terrified but excited" },
+  { lat: 42.3500, lng: -71.0720, loc: "Boston, MA",          mood: "sad",      text: "the only friend i made here is moving back to california" },
+  { lat: 38.9070, lng: -77.0360, loc: "Washington, DC",      mood: "angry",    text: "another protest blocked the way home. sympathetic but tired" },
+  { lat: 38.8860, lng: -77.0380, loc: "Washington, DC",      mood: "calm",     text: "the cherry blossoms are starting in tidal basin" },
+
+  // India (10)
+  { lat: 19.0760, lng:  72.8770, loc: "Mumbai, India",       mood: "joyful",   text: "monsoon hit and the whole city smelled like wet earth", photo: "https://picsum.photos/seed/hw-mumbai-rain/420/280" },
+  { lat: 19.0850, lng:  72.8600, loc: "Mumbai, India",       mood: "anxious",  text: "parents found out about the relationship today" },
+  { lat: 19.0700, lng:  72.8900, loc: "Mumbai, India",       mood: "lonely",   text: "arranged marriage talks have started. i'm not ready" },
+  { lat: 28.6140, lng:  77.2090, loc: "Delhi, India",        mood: "curious",  text: "the chai wala remembered my order after one visit" },
+  { lat: 28.6250, lng:  77.2200, loc: "Delhi, India",        mood: "angry",    text: "AQI is 380 and i have a marathon in two days" },
+  { lat: 28.6050, lng:  77.1980, loc: "Delhi, India",        mood: "hopeful",  text: "got into IIT today. mom cried" },
+  { lat: 28.6200, lng:  77.2300, loc: "Delhi, India",        mood: "joyful",   text: "auntie made aloo paratha exactly like nani used to" },
+  { lat: 12.9720, lng:  77.5950, loc: "Bengaluru, India",    mood: "calm",     text: "rooftop coffee, slow morning, no meetings until 11", photo: "https://picsum.photos/seed/hw-blr-rooftop/420/280" },
+  { lat: 12.9650, lng:  77.6040, loc: "Bengaluru, India",    mood: "sad",      text: "my grandfather passed away last night. flying home tomorrow" },
+  { lat: 12.9800, lng:  77.5850, loc: "Bengaluru, India",    mood: "grateful", text: "my team brought a cake for my work anniversary" },
+
+  // Japan (5)
+  { lat: 35.6710, lng: 139.6940, loc: "Tokyo, Japan",        mood: "calm",     text: "yoyogi park at 6am is perfect", photo: "https://picsum.photos/seed/hw-tokyo-yoyogi/420/280" },
+  { lat: 35.6800, lng: 139.7600, loc: "Tokyo, Japan",        mood: "lonely",   text: "salaryman mode for the third year. when does it end" },
+  { lat: 35.6900, lng: 139.7000, loc: "Tokyo, Japan",        mood: "hopeful",  text: "passed JLPT N2 today. finally" },
+  { lat: 34.6940, lng: 135.5020, loc: "Osaka, Japan",        mood: "joyful",   text: "okonomiyaki with my dad after five years", photo: "https://picsum.photos/seed/hw-osaka-food/420/280" },
+  { lat: 34.6850, lng: 135.4950, loc: "Osaka, Japan",        mood: "curious",  text: "the obachan at the station gives me ginger candy every day" }
+];
+
+// Pad if needed (kept simple — current total is 100)
+
+// ───────────── COLOR UTILS ─────────────
+function hexToRgb(hex) {
+  const h = hex.replace("#", "");
+  return [
+    parseInt(h.slice(0, 2), 16),
+    parseInt(h.slice(2, 4), 16),
+    parseInt(h.slice(4, 6), 16)
+  ];
+}
+function rgbToHex(r, g, b) {
+  const c = n => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+  return "#" + c(r) + c(g) + c(b);
+}
+function rgba(hex, a) {
+  const [r, g, b] = hexToRgb(hex);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function averageColors(hexes) {
+  if (!hexes.length) return null;
+  let r = 0, g = 0, b = 0;
+  for (const h of hexes) {
+    const [hr, hg, hb] = hexToRgb(h);
+    r += hr; g += hg; b += hb;
+  }
+  const n = hexes.length;
+  return rgbToHex(r / n, g / n, b / n);
+}
+
+// ───────────── STORAGE ─────────────
+const USER_KEY = "hw-user-messages";
+const todayStamp = () => new Date().toISOString().slice(0, 10);
+
+function loadUserMessages() {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    if (!raw) return [];
+    const data = JSON.parse(raw);
+    if (data && data.date === todayStamp() && Array.isArray(data.messages)) {
+      return data.messages;
+    }
+  } catch (e) {}
+  return [];
+}
+function saveUserMessages(msgs) {
+  try {
+    localStorage.setItem(USER_KEY, JSON.stringify({
+      date: todayStamp(),
+      messages: msgs
+    }));
+  } catch (e) {}
+}
+function hasDroppedToday() {
+  return loadUserMessages().some(m => m.mine);
+}
+function makeId() {
+  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+// ───────────── NEAREST CITY ─────────────
+function nearestCity(lat, lng) {
+  let best = null, bestD = Infinity;
+  const w = ((lng + 540) % 360) - 180;
+  const cosLat = Math.cos((lat * Math.PI) / 180);
+  for (const c of CITIES) {
+    const dLat = c.lat - lat;
+    let dLng = c.lng - w;
+    if (dLng > 180) dLng -= 360;
+    if (dLng < -180) dLng += 360;
+    const dx = dLng * cosLat;
+    const d = dLat * dLat + dx * dx;
+    if (d < bestD) { bestD = d; best = c; }
+  }
+  return best ? best.name : `${lat.toFixed(2)}, ${lng.toFixed(2)}`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+// ───────────── MAP ─────────────
+// Vertical lock at near-poles, horizontal effectively unbounded so wrap still works
+const VERT_BOUND = 85.05;
+const HORIZ_BOUND = 1e6;
+
+const map = L.map("map", {
+  worldCopyJump: true,
+  maxZoom: 9,
+  zoomControl: false,
+  attributionControl: false,
+  zoomSnap: 0.25,
+  maxBounds: [[-VERT_BOUND, -HORIZ_BOUND], [VERT_BOUND, HORIZ_BOUND]],
+  maxBoundsViscosity: 1.0,
+  inertia: true,
+  inertiaDeceleration: 1200,
+  inertiaMaxSpeed: 2400,
+  easeLinearity: 0.05,
+  zoomAnimation: true,
+  zoomAnimationThreshold: 8,
+  fadeAnimation: true,
+  markerZoomAnimation: true
+}).setView([0, 0], 2);
+
+L.control.zoom({ position: "topright" }).addTo(map);
+
+// Compute the zoom at which the full latitude range fills the viewport vertically.
+// Web Mercator world height (in px) at zoom z = 256 * 2^z. Pin minZoom so the world
+// can never be smaller than the viewport, eliminating top/bottom whitespace.
+function applyVerticalFit(initial) {
+  const h = map.getSize().y;
+  if (!h) return;
+  const fitZoom = Math.log2(h / 256);
+  const minZ = Math.max(1, fitZoom);
+  map.setMinZoom(minZ);
+  if (initial) {
+    map.setView([0, 0], minZ, { animate: false });
+  } else if (map.getZoom() < minZ) {
+    map.setView([0, map.getCenter().lng], minZ, { animate: false });
+  }
+}
+applyVerticalFit(true);
+window.addEventListener("resize", () => applyVerticalFit(false));
+
+map.createPane("countryPane");
+map.getPane("countryPane").style.zIndex = 350;
+map.getPane("countryPane").style.pointerEvents = "none";
+
+// (tile layer removed — landmasses rendered as SVG silhouette below)
+
+// Inverted wheel zoom — swipe up always zooms in
+map.scrollWheelZoom.disable();
+(function setupInvertedWheel() {
+  let accum = 0;
+  let target = null;
+  let frame = null;
+  map.getContainer().addEventListener("wheel", function (e) {
+    e.preventDefault();
+    // Trackpad pinch fires wheel with ctrlKey=true — keep that natural (pinch out = zoom in)
+    const sign = e.ctrlKey ? -1 : 1;
+    accum += sign * e.deltaY;
+    target = map.mouseEventToContainerPoint(e);
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      const change = accum / 100;
+      const next = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), map.getZoom() + change));
+      map.setZoomAround(target, next, { animate: true, duration: 0.3, easeLinearity: 0.05 });
+      accum = 0;
+      frame = null;
+    });
+  }, { passive: false });
+})();
+
+// ───────────── COUNTRY GEOJSON ─────────────
+const COUNTRIES_URL = "https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_0_countries.geojson";
+
+let countriesGeoJSON = null;
+let countriesLayer = null;
+let countryAvg = new Map();   // country name -> hex
+let continentAvg = new Map(); // continent name -> hex
+
+async function loadCountries() {
+  try {
+    const r = await fetch(COUNTRIES_URL, { cache: "force-cache" });
+    if (!r.ok) throw new Error("fetch failed");
+    countriesGeoJSON = await r.json();
+    // precompute bbox per feature
+    for (const f of countriesGeoJSON.features) {
+      if (!f.bbox) f.bbox = computeBBox(f);
+    }
+  } catch (e) {
+    console.warn("Countries GeoJSON unavailable; falling back to dots-only mode.", e);
+    countriesGeoJSON = null;
+  }
+}
+
+function computeBBox(feature) {
+  let minX = 180, minY = 90, maxX = -180, maxY = -90;
+  const visit = (coords) => {
+    if (typeof coords[0] === "number") {
+      const [x, y] = coords;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    } else {
+      for (const c of coords) visit(c);
+    }
+  };
+  visit(feature.geometry.coordinates);
+  return [minX, minY, maxX, maxY];
+}
+
+// ───────────── POINT-IN-POLYGON ─────────────
+function pointInRing(x, y, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    const intersect = ((yi > y) !== (yj > y)) &&
+      (x < ((xj - xi) * (y - yi)) / (yj - yi || 1e-12) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+function pointInPoly(x, y, polygon) {
+  // polygon: [outer, ...holes]
+  if (!pointInRing(x, y, polygon[0])) return false;
+  for (let i = 1; i < polygon.length; i++) {
+    if (pointInRing(x, y, polygon[i])) return false; // in a hole
+  }
+  return true;
+}
+function pointInFeature(x, y, feature) {
+  const g = feature.geometry;
+  if (g.type === "Polygon") return pointInPoly(x, y, g.coordinates);
+  if (g.type === "MultiPolygon") {
+    for (const poly of g.coordinates) {
+      if (pointInPoly(x, y, poly)) return true;
+    }
+  }
+  return false;
+}
+function findCountry(lat, lng) {
+  if (!countriesGeoJSON) return null;
+  const x = lng, y = lat;
+  for (const f of countriesGeoJSON.features) {
+    const b = f.bbox;
+    if (x < b[0] || x > b[2] || y < b[1] || y > b[3]) continue;
+    if (pointInFeature(x, y, f)) return f;
+  }
+  return null;
+}
+
+// ───────────── STATE ─────────────
+let messages = []; // combined seed + user
+const dotMarkers = new Map();
+const dotLayer = L.layerGroup();
+
+function buildMessages() {
+  const seedMsgs = SEED.map(s => ({
+    id: "seed-" + s.lat.toFixed(3) + "-" + s.lng.toFixed(3) + "-" + s.mood,
+    lat: s.lat, lng: s.lng, loc: s.loc, mood: s.mood, text: s.text, mine: false,
+    photo: s.photo || null
+  }));
+  const userMsgs = loadUserMessages();
+  messages = [...seedMsgs, ...userMsgs];
+}
+
+function assignCountriesToAll() {
+  for (const m of messages) {
+    if (m._country !== undefined) continue;
+    const f = findCountry(m.lat, m.lng);
+    if (f) {
+      m._country = f.properties.NAME || f.properties.ADMIN || null;
+      m._continent = f.properties.CONTINENT || null;
+    } else {
+      m._country = null;
+      m._continent = null;
+    }
+  }
+}
+
+function recomputeAggregates() {
+  const byCountry = new Map();
+  const byContinent = new Map();
+  for (const m of messages) {
+    const color = MOOD_BY_ID[m.mood]?.color;
+    if (!color) continue;
+    if (m._country) {
+      if (!byCountry.has(m._country)) byCountry.set(m._country, []);
+      byCountry.get(m._country).push(color);
+    }
+    if (m._continent) {
+      if (!byContinent.has(m._continent)) byContinent.set(m._continent, []);
+      byContinent.get(m._continent).push(color);
+    }
+  }
+  countryAvg = new Map();
+  for (const [k, v] of byCountry) countryAvg.set(k, averageColors(v));
+  continentAvg = new Map();
+  for (const [k, v] of byContinent) continentAvg.set(k, averageColors(v));
+}
+
+// ───────────── RENDERING ─────────────
+function dotIconHtml(mood, mine) {
+  const color = MOOD_BY_ID[mood]?.color || "#1a1a1a";
+  const soft = rgba(color, 0.45);
+  return `<div class="dot${mine ? " mine" : ""}" style="--c:${color}; --c-soft:${soft};"></div>`;
+}
+
+function addDotMarker(msg) {
+  const icon = L.divIcon({
+    className: "dot-wrap",
+    html: dotIconHtml(msg.mood, msg.mine),
+    iconSize: [11, 11],
+    iconAnchor: [5.5, 5.5]
+  });
+  const m = L.marker([msg.lat, msg.lng], { icon, riseOnHover: true, keyboard: false });
+  m.bindPopup(() => buildPopup(msg), {
+    closeButton: false,
+    minWidth: 220,
+    maxWidth: 220,
+    autoPan: true,
+    autoPanPadding: [30, 30]
+  });
+
+  m.on("popupopen", () => {
+    const el = m.getElement();
+    if (el) { const d = el.querySelector(".dot"); if (d) d.classList.add("expanded"); }
+    const popupEl = m.getPopup() && m.getPopup().getElement();
+    const textEl = popupEl && popupEl.querySelector(".msg-text");
+    if (textEl && !textEl.dataset.bound) {
+      textEl.dataset.bound = "1";
+      if (textEl.scrollHeight > textEl.clientHeight + 1) {
+        textEl.classList.add("clampable");
+      }
+      textEl.addEventListener("click", () => {
+        if (!textEl.classList.contains("clampable") && !textEl.classList.contains("expanded")) return;
+        textEl.classList.toggle("expanded");
+        const p = m.getPopup();
+        if (p && p.update) p.update();
+      });
+    }
+  });
+  m.on("popupclose", () => {
+    const el = m.getElement();
+    if (el) { const d = el.querySelector(".dot"); if (d) d.classList.remove("expanded"); }
+  });
+
+  dotLayer.addLayer(m);
+  dotMarkers.set(msg.id, m);
+}
+
+function buildPopup(msg) {
+  const wrap = document.createElement("div");
+  const mood = MOOD_BY_ID[msg.mood];
+  const photoHtml = msg.photo
+    ? `<div class="msg-photo"><img src="${msg.photo}" alt=""></div>`
+    : "";
+  wrap.innerHTML =
+    `<div class="msg-text">${escapeHtml(msg.text)}</div>` +
+    `<div class="msg-translation" hidden></div>` +
+    photoHtml +
+    `<div class="msg-meta">` +
+      `<span class="msg-mood" style="--c:${mood?.color || "#999"}">${escapeHtml(mood?.name || msg.mood)}</span>` +
+      `<span class="msg-divider">·</span>` +
+      `<span class="msg-loc">${escapeHtml(msg.loc || "")}</span>` +
+    `</div>`;
+
+  const target = getCurrentLang();
+  if (target && target !== "off" && msg.text) {
+    const tEl = wrap.querySelector(".msg-translation");
+    translate(msg.text, target).then((t) => {
+      if (!t) return;
+      if (normalizeForCompare(t) === normalizeForCompare(msg.text)) return;
+      tEl.innerHTML =
+        `<div class="msg-translation-label">translated</div>` +
+        `<div class="msg-translation-text">${escapeHtml(t)}</div>`;
+      tEl.hidden = false;
+      const m = dotMarkers.get(msg.id);
+      const p = m && m.getPopup && m.getPopup();
+      if (p && p.update) p.update();
+    });
+  }
+
+  return wrap;
+}
+
+function rebuildDots() {
+  dotLayer.clearLayers();
+  dotMarkers.clear();
+  for (const m of messages) addDotMarker(m);
+}
+
+const SILHOUETTE_STYLE = {
+  fill: false,
+  fillOpacity: 0,
+  color: "#2f4153",
+  weight: 0.7,
+  opacity: 1,
+  lineCap: "round",
+  lineJoin: "round"
+};
+
+function updateLayers() {
+  if (!map.hasLayer(dotLayer)) dotLayer.addTo(map);
+  if (countriesLayer && !map.hasLayer(countriesLayer)) countriesLayer.addTo(map);
+}
+
+function buildCountriesLayer() {
+  if (!countriesGeoJSON) return;
+  if (countriesLayer) countriesLayer.remove();
+  countriesLayer = L.geoJSON(countriesGeoJSON, {
+    style: () => SILHOUETTE_STYLE,
+    interactive: false,
+    pane: "countryPane",
+    smoothFactor: 1.2
+  });
+  countriesLayer.addTo(map);
+}
+
+// ───────────── MOOD PICKER UI ─────────────
+const moodPickerEl = document.getElementById("moodPicker");
+let selectedMood = null;
+function buildMoodPicker() {
+  moodPickerEl.innerHTML = "";
+  for (const m of MOODS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "mood";
+    btn.dataset.mood = m.id;
+    btn.style.setProperty("--c", m.color);
+    btn.innerHTML = `<span class="mood-swatch"></span><span class="mood-name">${m.name}</span>`;
+    btn.addEventListener("click", () => {
+      selectedMood = m.id;
+      [...moodPickerEl.children].forEach(c => c.classList.toggle("selected", c.dataset.mood === m.id));
+      updateSendEnabled();
+    });
+    moodPickerEl.appendChild(btn);
+  }
+}
+buildMoodPicker();
+
+// ───────────── COMPOSE ─────────────
+const compose = document.getElementById("compose");
+const composeText = document.getElementById("composeText");
+const composeLoc = document.getElementById("composeLoc");
+const counter = document.getElementById("counter");
+const sendBtn = document.getElementById("sendBtn");
+const cancelBtn = document.getElementById("cancelBtn");
+const hint = document.getElementById("hint");
+
+let pendingLatLng = null;
+let previewMarker = null;
+
+function clearPreview() {
+  if (previewMarker) {
+    previewMarker.remove();
+    previewMarker = null;
+  }
+}
+
+function openCompose(latlng) {
+  if (hasDroppedToday()) {
+    flashHint("you've already dropped one today — come back tomorrow");
+    return;
+  }
+  pendingLatLng = latlng;
+  clearPreview();
+  previewMarker = L.marker(latlng, {
+    icon: L.divIcon({
+      className: "dot-wrap",
+      html: `<div class="dot mine preview" style="--c:#bbbbbb; --c-soft:rgba(180,180,180,0.4);"></div>`,
+      iconSize: [11, 11],
+      iconAnchor: [5.5, 5.5]
+    }),
+    interactive: false
+  }).addTo(map);
+
+  composeLoc.textContent = nearestCity(latlng.lat, latlng.lng);
+  composeText.value = "";
+  selectedMood = null;
+  [...moodPickerEl.children].forEach(c => c.classList.remove("selected"));
+  resetPhotoState();
+  clearComposeError();
+  updateCounter();
+  updateSendEnabled();
+  compose.classList.add("open");
+  setTimeout(() => composeText.focus(), 60);
+}
+
+function closeCompose(submitted) {
+  compose.classList.remove("open");
+  if (!submitted) clearPreview();
+  pendingLatLng = null;
+}
+
+function updateCounter() {
+  const len = composeText.value.length;
+  counter.textContent = String(280 - len);
+  counter.classList.toggle("over", len > 280);
+  if (composeError && !composeError.hidden) clearComposeError();
+  updateSendEnabled();
+}
+function updateSendEnabled() {
+  const len = composeText.value.length;
+  sendBtn.disabled = !(len > 0 && len <= 280 && selectedMood);
+}
+
+const URL_RE = /(?:https?:\/\/|www\.)\S+|\b[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:com|org|net|io|app|co|gov|edu|me|us|uk|ca|de|fr|jp|cn|au|ru|br|in|info|biz|tv|to|ly|gl|sh|xyz|dev|ai)\b/i;
+const composeError = document.getElementById("composeError");
+
+function showComposeError(text) {
+  composeError.textContent = text;
+  composeError.hidden = false;
+}
+function clearComposeError() {
+  composeError.textContent = "";
+  composeError.hidden = true;
+}
+
+function submit() {
+  const text = composeText.value.trim();
+  if (!text || text.length > 280 || !pendingLatLng || !selectedMood) return;
+  if (URL_RE.test(text)) {
+    showComposeError("links aren't allowed here. plain text and feelings only.");
+    return;
+  }
+  if (hasDroppedToday()) { closeCompose(false); return; }
+
+  const ll = pendingLatLng;
+  const f = findCountry(ll.lat, ll.lng);
+  const msg = {
+    id: makeId(),
+    text,
+    lat: ll.lat,
+    lng: ll.lng,
+    loc: nearestCity(ll.lat, ll.lng),
+    mood: selectedMood,
+    mine: true,
+    photo: pendingPhoto || null,
+    _country: f ? (f.properties.NAME || f.properties.ADMIN || null) : null,
+    _continent: f ? (f.properties.CONTINENT || null) : null
+  };
+
+  // Persist user-only messages
+  const userMsgs = loadUserMessages();
+  userMsgs.push({
+    id: msg.id, text: msg.text, lat: msg.lat, lng: msg.lng,
+    loc: msg.loc, mood: msg.mood, mine: true, photo: msg.photo
+  });
+  saveUserMessages(userMsgs);
+
+  messages.push(msg);
+  recomputeAggregates();
+
+  clearPreview();
+  addDotMarker(msg);
+  updateLayers();
+
+  closeCompose(true);
+  const m = dotMarkers.get(msg.id);
+  if (m && map.hasLayer(dotLayer)) m.openPopup();
+  hideHint();
+}
+
+// ───────────── LANGUAGE / TRANSLATION ─────────────
+const LANGS = [
+  { code: "off",   label: "translation off" },
+  { code: "en",    label: "english" },
+  { code: "es",    label: "español" },
+  { code: "fr",    label: "français" },
+  { code: "de",    label: "deutsch" },
+  { code: "pt",    label: "português" },
+  { code: "it",    label: "italiano" },
+  { code: "nl",    label: "nederlands" },
+  { code: "pl",    label: "polski" },
+  { code: "tr",    label: "türkçe" },
+  { code: "ru",    label: "русский" },
+  { code: "uk",    label: "українська" },
+  { code: "ar",    label: "العربية" },
+  { code: "hi",    label: "हिन्दी" },
+  { code: "zh",    label: "中文 (简体)" },
+  { code: "ja",    label: "日本語" },
+  { code: "ko",    label: "한국어" }
+];
+const LANG_KEY = "hw-language";
+const langBtn = document.getElementById("langBtn");
+const langPanel = document.getElementById("langPanel");
+
+function getCurrentLang() {
+  return localStorage.getItem(LANG_KEY) || "off";
+}
+
+function setLang(code) {
+  localStorage.setItem(LANG_KEY, code);
+  for (const opt of langPanel.children) {
+    opt.classList.toggle("active", opt.dataset.code === code);
+  }
+  map.closePopup();
+}
+
+(function buildLangPanel() {
+  for (const l of LANGS) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "lang-opt";
+    btn.dataset.code = l.code;
+    btn.textContent = l.label;
+    btn.addEventListener("click", () => {
+      setLang(l.code);
+      closeLangPanel();
+    });
+    langPanel.appendChild(btn);
+  }
+  let initial = localStorage.getItem(LANG_KEY);
+  if (!initial) {
+    const b = (navigator.language || "en").slice(0, 2).toLowerCase();
+    initial = LANGS.some(l => l.code === b) ? b : "off";
+  }
+  for (const opt of langPanel.children) {
+    opt.classList.toggle("active", opt.dataset.code === initial);
+  }
+})();
+
+function openLangPanel() {
+  langPanel.classList.add("open");
+  langBtn.setAttribute("aria-expanded", "true");
+}
+function closeLangPanel() {
+  langPanel.classList.remove("open");
+  langBtn.setAttribute("aria-expanded", "false");
+}
+
+langBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  if (langPanel.classList.contains("open")) closeLangPanel();
+  else openLangPanel();
+});
+document.addEventListener("click", (e) => {
+  if (!langPanel.classList.contains("open")) return;
+  if (langPanel.contains(e.target) || langBtn.contains(e.target)) return;
+  closeLangPanel();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && langPanel.classList.contains("open")) closeLangPanel();
+});
+
+const translationCache = new Map();
+async function translate(text, targetLang) {
+  const key = `${targetLang}::${text}`;
+  if (translationCache.has(key)) return translationCache.get(key);
+  try {
+    const url = "https://lingva.ml/api/v1/auto/"
+      + encodeURIComponent(targetLang) + "/"
+      + encodeURIComponent(text);
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("translate fetch failed");
+    const data = await r.json();
+    const t = data && data.translation;
+    const result = (typeof t === "string" && t.trim()) ? t : null;
+    translationCache.set(key, result);
+    return result;
+  } catch (e) {
+    translationCache.set(key, null);
+    return null;
+  }
+}
+
+function normalizeForCompare(s) {
+  return (s || "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+// ───────────── PHOTO ─────────────
+const photoBtn = document.getElementById("photoBtn");
+const photoInput = document.getElementById("photoInput");
+const photoPreview = document.getElementById("photoPreview");
+const photoPreviewImg = document.getElementById("photoPreviewImg");
+const photoRemove = document.getElementById("photoRemove");
+
+const isCoarsePointer = matchMedia("(pointer: coarse)").matches;
+let pendingPhoto = null;
+
+function resetPhotoState() {
+  pendingPhoto = null;
+  photoPreview.hidden = true;
+  photoPreviewImg.removeAttribute("src");
+  photoBtn.hidden = !isCoarsePointer;
+}
+
+function processPhoto(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1024;
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (w > MAX || h > MAX) {
+        const r = Math.min(MAX / w, MAX / h);
+        w = Math.round(w * r);
+        h = Math.round(h * r);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", 0.78));
+    };
+    img.onerror = (err) => { URL.revokeObjectURL(url); reject(err); };
+    img.src = url;
+  });
+}
+
+photoBtn.addEventListener("click", () => photoInput.click());
+
+photoInput.addEventListener("change", async () => {
+  const file = photoInput.files && photoInput.files[0];
+  photoInput.value = "";
+  if (!file) return;
+  try {
+    pendingPhoto = await processPhoto(file);
+    photoPreviewImg.src = pendingPhoto;
+    photoPreview.hidden = false;
+    photoBtn.hidden = true;
+  } catch (e) {
+    console.warn("photo processing failed", e);
+  }
+});
+
+photoRemove.addEventListener("click", () => {
+  pendingPhoto = null;
+  photoPreview.hidden = true;
+  photoPreviewImg.removeAttribute("src");
+  if (isCoarsePointer) photoBtn.hidden = false;
+});
+
+// ───────────── DROP BUTTON + GEOLOCATION ─────────────
+const dropBtn = document.getElementById("dropBtn");
+const geoMsg = document.getElementById("geoMsg");
+const geoDismiss = document.getElementById("geoDismiss");
+
+function showGeoDenied() {
+  geoMsg.classList.add("open");
+}
+geoDismiss.addEventListener("click", () => geoMsg.classList.remove("open"));
+geoMsg.addEventListener("click", (e) => {
+  if (e.target === geoMsg) geoMsg.classList.remove("open");
+});
+
+function requestDrop() {
+  if (hasDroppedToday()) {
+    flashHint("you've already dropped one today — come back tomorrow");
+    return;
+  }
+  if (!navigator.geolocation) {
+    showGeoDenied();
+    return;
+  }
+  dropBtn.disabled = true;
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      dropBtn.disabled = false;
+      const ll = L.latLng(pos.coords.latitude, pos.coords.longitude);
+      const targetZoom = Math.max(map.getZoom(), 6);
+      map.setView(ll, targetZoom, { animate: true });
+      openCompose(ll);
+      hideHint();
+    },
+    () => {
+      dropBtn.disabled = false;
+      showGeoDenied();
+    },
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+  );
+}
+dropBtn.addEventListener("click", requestDrop);
+
+composeText.addEventListener("input", updateCounter);
+sendBtn.addEventListener("click", submit);
+cancelBtn.addEventListener("click", () => closeCompose(false));
+
+compose.addEventListener("click", (e) => {
+  if (e.target === compose) closeCompose(false);
+});
+
+document.addEventListener("keydown", (e) => {
+  if (!compose.classList.contains("open")) return;
+  if (e.key === "Escape") closeCompose(false);
+  else if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submit();
+});
+
+// ───────────── HINT ─────────────
+let hintTimer = null;
+function flashHint(text) {
+  hint.textContent = text;
+  hint.classList.remove("gone");
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => hint.classList.add("gone"), 4000);
+}
+function hideHint() {
+  if (hint && !hint.classList.contains("gone")) hint.classList.add("gone");
+}
+if (hasDroppedToday()) {
+  hint.textContent = "you've left your mark today. come back tomorrow.";
+  hint.classList.remove("gone");
+  setTimeout(() => hint.classList.add("gone"), 6000);
+}
+
+// ───────────── MIDNIGHT RESET ─────────────
+(function scheduleMidnight() {
+  const now = new Date();
+  const next = new Date(now);
+  next.setHours(24, 0, 0, 0);
+  const wait = next - now + 500;
+  setTimeout(() => location.reload(), wait);
+})();
+
+// ───────────── RESET COUNTDOWN ─────────────
+(function startResetTimer() {
+  const el = document.getElementById("resetTimer");
+  if (!el) return;
+  function update() {
+    const now = new Date();
+    const next = new Date(Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate() + 1,
+      0, 0, 0, 0
+    ));
+    const diff = Math.max(0, next - now);
+    const hours = Math.floor(diff / 3600000);
+    const minutes = Math.floor((diff % 3600000) / 60000);
+    let text;
+    if (hours > 0 && minutes > 0) text = `resets in ${hours}h ${minutes}m`;
+    else if (hours > 0) text = `resets in ${hours}h`;
+    else if (minutes > 0) text = `resets in ${minutes}m`;
+    else text = "resetting soon";
+    el.textContent = text;
+  }
+  update();
+  setInterval(update, 60000);
+})();
+
+// ───────────── DEV RESET (console only) ─────────────
+window.resetMyDot = function () {
+  localStorage.removeItem(USER_KEY);
+  for (const m of messages) {
+    if (!m.mine) continue;
+    const marker = dotMarkers.get(m.id);
+    if (marker) {
+      dotLayer.removeLayer(marker);
+      dotMarkers.delete(m.id);
+    }
+  }
+  messages = messages.filter(m => !m.mine);
+  recomputeAggregates();
+  clearPreview();
+  hint.classList.add("gone");
+  dropBtn.disabled = false;
+  console.log("%c[dev] resetMyDot: localStorage cleared, ready for a new drop", "color:#888");
+  return "ok";
+};
+
+// ───────────── BOOT ─────────────
+(async function boot() {
+  buildMessages();
+  rebuildDots();
+  if (!map.hasLayer(dotLayer)) dotLayer.addTo(map);
+  await loadCountries();
+  buildCountriesLayer();
+})();
+</script>
+</body>
+</html>
