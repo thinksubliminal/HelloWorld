@@ -1602,6 +1602,11 @@ function setLang(code) {
   // If the same language is picked again, nothing to re-render.
   if (previous === code) return;
 
+  // Warm the cache for every dot in the new language so future popups open
+  // pre-translated. Fire-and-forget — the open-popup path below handles the
+  // currently-visible one.
+  pretranslateAll(code);
+
   // Re-translate the currently open popup (if any) on the spot, so the user
   // sees the change immediately instead of having to close and re-open.
   const openMarker = [...dotMarkers.values()].find(m => m.isPopupOpen && m.isPopupOpen());
@@ -1745,11 +1750,9 @@ function getTranslatedNow(text, targetLang) {
 // different mirror over time.
 const LINGVA_HOSTS = [
   "https://lingva.ml",
-  "https://translate.plausibility.cloud",
-  "https://lingva.lunar.icu",
-  "https://lingva.garudalinux.org"
+  "https://lingva.lunar.icu"
 ];
-const LINGVA_TIMEOUT_MS = 2000;
+const LINGVA_TIMEOUT_MS = 6000;
 
 async function fetchLingva(host, targetLang, text) {
   const url = host + "/api/v1/auto/"
@@ -1798,6 +1801,24 @@ function translate(text, targetLang) {
 
 function normalizeForCompare(s) {
   return (s || "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+// Warm the translation cache for every loaded message in the background, so
+// popups open already-translated instead of swapping in a few seconds later.
+// Concurrency is capped so we don't fire dozens of parallel requests at the
+// (already slow) Lingva mirrors.
+function pretranslateAll(lang) {
+  if (!lang || lang === "off") return;
+  const items = messages.filter(m => m.text && !getTranslatedNow(m.text, lang));
+  let i = 0;
+  const worker = async () => {
+    while (i < items.length) {
+      if (getCurrentLang() !== lang) return; // user switched mid-flight
+      const m = items[i++];
+      try { await translate(m.text, lang); } catch (_) {}
+    }
+  };
+  for (let n = 0; n < 3; n++) worker();
 }
 
 // ───────────── DROP BUTTON + GEOLOCATION ─────────────
@@ -1987,6 +2008,10 @@ window.resetMyDot = function () {
     console.warn("[supabase] initial fetch threw:", e);
   }
 
+  // Warm the translation cache for the user's chosen language now that all
+  // initial messages (seed + Supabase) are loaded.
+  pretranslateAll(getCurrentLang());
+
   // ── Realtime: subscribe to new inserts ──
   // Anyone in the world drops a dot, this fires on every connected client.
   sb.channel("messages-realtime")
@@ -2003,6 +2028,9 @@ window.resetMyDot = function () {
         messages.push(msg);
         addDotMarker(msg);
         updateLayers();
+        // Warm the cache for this single new message in the current language.
+        const lang = getCurrentLang();
+        if (lang && lang !== "off" && msg.text) translate(msg.text, lang);
       }
     )
     .subscribe();
