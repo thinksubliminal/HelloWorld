@@ -1107,16 +1107,20 @@ L.control.zoom({ position: "topright" }).addTo(map);
 // Compute the zoom at which the full latitude range fills the viewport vertically.
 // Web Mercator world height (in px) at zoom z = 256 * 2^z. Pin minZoom so the world
 // can never be smaller than the viewport, eliminating top/bottom whitespace.
+// Mobile (narrow viewport) starts more zoomed out so users see more of the world.
+const IS_MOBILE_VIEWPORT = window.innerWidth < 768;
+const INITIAL_ZOOM = IS_MOBILE_VIEWPORT ? 1.5 : 2.3;
+
 function applyVerticalFit(initial) {
   const h = map.getSize().y;
   if (!h) return;
   const fitZoom = Math.log2(h / 256);
-  // Cap minZoom at 2.3 so the locked starting zoom is always allowed,
+  // Cap minZoom at INITIAL_ZOOM so the locked starting zoom is always allowed,
   // even on very tall viewports where the world-fit zoom would exceed it.
-  const minZ = Math.min(2.3, Math.max(1, fitZoom));
+  const minZ = Math.min(INITIAL_ZOOM, Math.max(1, fitZoom));
   map.setMinZoom(minZ);
   if (initial) {
-    map.setView([20, 10], 2.3, { animate: false });
+    map.setView([20, 10], INITIAL_ZOOM, { animate: false });
   } else if (map.getZoom() < minZ) {
     map.setView(map.getCenter(), minZ, { animate: false });
   }
