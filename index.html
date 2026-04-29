@@ -1532,11 +1532,64 @@ function getCurrentLang() {
 }
 
 function setLang(code) {
+  const previous = localStorage.getItem(LANG_KEY);
   localStorage.setItem(LANG_KEY, code);
   for (const opt of langPanel.children) {
     opt.classList.toggle("active", opt.dataset.code === code);
   }
-  map.closePopup();
+  // If the same language is picked again, nothing to re-render.
+  if (previous === code) return;
+
+  // Re-translate the currently open popup (if any) on the spot, so the user
+  // sees the change immediately instead of having to close and re-open.
+  const openMarker = [...dotMarkers.values()].find(m => m.isPopupOpen && m.isPopupOpen());
+  if (!openMarker) return;
+  const msg = messages.find(m => dotMarkers.get(m.id) === openMarker);
+  if (!msg) return;
+
+  const popup = openMarker.getPopup();
+  const popupEl = popup && popup.getElement();
+  const textEl = popupEl && popupEl.querySelector(".msg-text");
+  if (!textEl) return;
+
+  if (code === "off" || !msg.text) {
+    // Switching translation OFF: snap back to original text.
+    textEl.textContent = msg.text || "";
+    requestAnimationFrame(() => {
+      textEl.classList.remove("clampable", "expanded");
+      if (textEl.scrollHeight > textEl.clientHeight + 1) {
+        textEl.classList.add("clampable");
+      }
+    });
+    if (popup.update) popup.update();
+    return;
+  }
+
+  // Switching to a real language: paint cached translation if we have one,
+  // otherwise fetch and replace when it resolves.
+  const cached = getTranslatedNow(msg.text, code);
+  const applyText = (t) => {
+    if (!t) return;
+    if (!textEl.isConnected || getCurrentLang() !== code) return;
+    if (normalizeForCompare(t) === normalizeForCompare(msg.text)) {
+      textEl.textContent = msg.text;
+    } else {
+      textEl.textContent = t;
+    }
+    requestAnimationFrame(() => {
+      textEl.classList.remove("clampable", "expanded");
+      if (textEl.scrollHeight > textEl.clientHeight + 1) {
+        textEl.classList.add("clampable");
+      }
+    });
+    if (popup.update) popup.update();
+  };
+
+  if (cached) {
+    applyText(cached);
+  } else {
+    translate(msg.text, code).then(applyText);
+  }
 }
 
 (function buildLangPanel() {
