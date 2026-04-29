@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
 <title>Hello, World</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   html, body {
@@ -14,7 +15,31 @@
     color: #1a1a1a;
     -webkit-font-smoothing: antialiased;
   }
-  #map { width: 100vw; height: 100vh; background: #ffffff; }
+  #map {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #ffffff;
+  }
+
+  #topNav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 50px;
+    background: rgba(10, 25, 41, 0.6);
+    -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 18px;
+    z-index: 700;
+  }
+  #topNav .nav-left { display: flex; align-items: center; }
+  #topNav .nav-right { display: flex; align-items: center; gap: 14px; }
 
   .leaflet-container { background: #0a1929 !important; font-family: inherit; outline: none; }
 
@@ -23,12 +48,6 @@
     -webkit-transition: -webkit-transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
             transition:         transform 0.35s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
-  .leaflet-fade-anim .leaflet-tile {
-    will-change: opacity;
-    -webkit-transition: opacity 0.25s linear;
-            transition: opacity 0.25s linear;
-  }
-
   .leaflet-container.leaflet-grab,
   .leaflet-grab {
     cursor: grab;
@@ -54,7 +73,7 @@
     background: transparent !important;
   }
   .leaflet-top.leaflet-right .leaflet-control-zoom {
-    margin-top: 48px;
+    margin-top: 64px;
     margin-right: 14px;
   }
   .leaflet-control-zoom a {
@@ -87,10 +106,18 @@
     width: 11px; height: 11px;
     border-radius: 50%;
     cursor: pointer;
-    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    transition: transform 0.18s ease;
     position: relative;
     background: var(--c, #1a1a1a);
-    box-shadow: 0 0 8px var(--c-soft, rgba(0,0,0,0.2));
+    box-shadow: 0 0 6px var(--c-soft, rgba(0,0,0,0.2));
+  }
+  .dot:hover { transform: scale(1.45); }
+  .dot.expanded { transform: scale(1.7); }
+  .dot.mine {
+    box-shadow:
+      0 0 0 2.5px #ffffff,
+      0 0 0 3.5px rgba(0,0,0,0.18),
+      0 0 12px var(--c-soft, rgba(0,0,0,0.25));
   }
   .dot::after {
     content: '';
@@ -99,14 +126,6 @@
     border: 1.5px solid var(--c-soft, rgba(0,0,0,0.3));
     animation: pulse 3s ease-out infinite;
     pointer-events: none;
-  }
-  .dot:hover { transform: scale(1.45); }
-  .dot.expanded { transform: scale(1.7); }
-  .dot.mine {
-    box-shadow:
-      0 0 0 2.5px #ffffff,
-      0 0 0 3.5px rgba(0,0,0,0.18),
-      0 0 10px var(--c-soft, rgba(0,0,0,0.25));
   }
   .dot.preview { opacity: 0.55; }
   .dot.preview::after { animation: none; border-color: transparent; }
@@ -134,6 +153,26 @@
     border: 0.5px solid rgba(255, 255, 255, 0.1);
     box-shadow: none;
   }
+
+  /* Hover preview tooltip — desktop only */
+  .leaflet-tooltip.dot-tooltip {
+    background: rgba(10, 25, 41, 0.92);
+    -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+    color: rgba(255, 255, 255, 0.85);
+    border: 0.5px solid rgba(255, 255, 255, 0.12);
+    border-radius: 6px;
+    padding: 5px 9px;
+    font-size: 12px;
+    line-height: 1.3;
+    max-width: 240px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+  }
+  .leaflet-tooltip.dot-tooltip::before { display: none; }
   .leaflet-popup-content {
     margin: 13px 16px 12px;
     font-size: 14px;
@@ -187,9 +226,9 @@
   /* Compose */
   #compose {
     position: fixed; inset: 0;
-    background: rgba(255,255,255,0.55);
-    backdrop-filter: blur(3px);
+    background: rgba(10, 18, 30, 0.55);
     -webkit-backdrop-filter: blur(3px);
+            backdrop-filter: blur(3px);
     display: none;
     align-items: center;
     justify-content: center;
@@ -197,16 +236,18 @@
   }
   #compose.open { display: flex; }
   .compose-card {
-    background: #fff;
-    border: 1px solid #eaeaea;
-    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.07);
+    -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+    border: 0.5px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
     padding: 20px 22px 16px;
     width: min(440px, 92vw);
-    box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
   }
   .compose-loc {
     font-size: 10px;
-    color: #999;
+    color: rgba(255, 255, 255, 0.4);
     margin-bottom: 12px;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -220,10 +261,13 @@
     font: inherit;
     font-size: 15px;
     line-height: 1.5;
-    color: #1a1a1a;
+    color: rgba(255, 255, 255, 0.9);
     padding: 0;
     background: transparent;
+    caret-color: rgba(255, 255, 255, 0.9);
   }
+  .compose-card textarea::placeholder { color: rgba(255, 255, 255, 0.35); }
+  .compose-card textarea::-webkit-input-placeholder { color: rgba(255, 255, 255, 0.35); }
 
   .mood-picker {
     margin-top: 10px;
@@ -233,7 +277,7 @@
   }
   .mood {
     background: none;
-    border: 1px solid transparent;
+    border: 0.5px solid transparent;
     padding: 6px 4px;
     cursor: pointer;
     border-radius: 4px;
@@ -241,84 +285,31 @@
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    transition: border-color 0.15s, background 0.15s;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
     font: inherit;
-    color: #666;
+    color: rgba(255, 255, 255, 0.6);
   }
-  .mood:hover { background: #fafafa; }
-  .mood.selected { border-color: #1a1a1a; background: #fafafa; color: #1a1a1a; }
+  .mood:hover { background: rgba(255, 255, 255, 0.05); }
+  .mood.selected {
+    border-color: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.95);
+  }
   .mood-swatch {
     width: 16px; height: 16px;
     border-radius: 50%;
     background: var(--c);
-    box-shadow: 0 0 0 2px rgba(255,255,255,1), 0 0 5px var(--c);
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.2), 0 0 6px var(--c);
   }
   .mood-name {
     font-size: 10.5px;
     letter-spacing: 0.04em;
   }
 
-  .photo-row {
-    margin-top: 12px;
-    padding-top: 10px;
-    border-top: 1px solid #f3f3f3;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    min-height: 28px;
-  }
-  .photo-btn {
-    background: none;
-    border: 1px dashed #d8d8d8;
-    color: #888;
-    padding: 6px 12px;
-    font: inherit;
-    font-size: 11.5px;
-    border-radius: 4px;
-    cursor: pointer;
-    letter-spacing: 0.04em;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .photo-btn:hover { border-color: #999; color: #333; }
-  .photo-preview {
-    position: relative;
-    display: inline-block;
-  }
-  .photo-preview img {
-    display: block;
-    max-width: 92px;
-    max-height: 92px;
-    border-radius: 3px;
-    border: 1px solid #ececec;
-  }
-  .photo-remove {
-    position: absolute;
-    top: -7px; right: -7px;
-    width: 18px; height: 18px;
-    border: none;
-    background: #1a1a1a;
-    color: #fff;
-    border-radius: 50%;
-    cursor: pointer;
-    font-size: 12px;
-    line-height: 1;
-    padding: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .msg-photo {
-    margin-top: 10px;
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    overflow: hidden;
-  }
-  .msg-photo img { display: block; width: 100%; height: auto; }
-
   .compose-error {
     margin-top: 10px;
     font-size: 11.5px;
-    color: #c66;
+    color: rgba(255, 150, 150, 0.85);
     line-height: 1.4;
     letter-spacing: 0.02em;
   }
@@ -329,26 +320,35 @@
     align-items: center;
     margin-top: 14px;
     padding-top: 10px;
-    border-top: 1px solid #f3f3f3;
+    border-top: 0.5px solid rgba(255, 255, 255, 0.08);
   }
-  .counter { font-size: 11px; color: #aaa; font-variant-numeric: tabular-nums; }
-  .counter.over { color: #c53; }
+  .counter { font-size: 11px; color: rgba(255, 255, 255, 0.3); font-variant-numeric: tabular-nums; }
+  .counter.over { color: rgba(255, 140, 110, 0.85); }
   .btn-row { display: flex; gap: 8px; }
   .btn {
-    background: #fff;
-    border: 1px solid #ddd;
+    background: rgba(255, 255, 255, 0.05);
+    border: 0.5px solid rgba(255, 255, 255, 0.15);
     padding: 6px 14px;
     font: inherit;
     font-size: 12.5px;
     border-radius: 4px;
     cursor: pointer;
-    color: #555;
+    color: rgba(255, 255, 255, 0.7);
     transition: background 0.15s, border-color 0.15s, color 0.15s;
   }
-  .btn:hover { background: #fafafa; }
-  .btn.primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
-  .btn.primary:hover { background: #000; }
-  .btn.primary:disabled { background: #d4d4d4; border-color: #d4d4d4; color: #fff; cursor: not-allowed; }
+  .btn:hover { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.9); }
+  .btn.primary {
+    background: rgba(255, 255, 255, 0.85);
+    color: #0a121e;
+    border-color: rgba(255, 255, 255, 0.85);
+  }
+  .btn.primary:hover { background: rgba(255, 255, 255, 0.95); color: #0a121e; }
+  .btn.primary:disabled {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.3);
+    cursor: not-allowed;
+  }
 
   #hint {
     position: fixed;
@@ -369,23 +369,15 @@
   #hint.gone { opacity: 0; }
 
   #title {
-    position: fixed;
-    top: 14px; left: 18px;
     font-size: 12px;
     color: #999;
-    z-index: 500;
-    pointer-events: none;
     letter-spacing: 0.14em;
     text-transform: uppercase;
   }
 
   #resetTimer {
-    position: fixed;
-    bottom: 82px; left: 50%;
-    transform: translateX(-50%);
-    font-size: 12px;
-    color: #999;
-    z-index: 500;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
     pointer-events: none;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -393,28 +385,25 @@
   }
 
   #langBtn {
-    position: fixed;
-    top: 12px; right: 14px;
-    z-index: 501;
     background: transparent;
     border: none;
     padding: 4px;
     cursor: pointer;
-    color: #999;
+    color: rgba(255, 255, 255, 0.4);
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 4px;
     transition: color 0.15s;
   }
-  #langBtn:hover { color: #ccc; }
+  #langBtn:hover { color: rgba(255, 255, 255, 0.7); }
   #langBtn svg { width: 18px; height: 18px; display: block; }
 
   #langPanel {
     position: fixed;
-    top: 42px; right: 14px;
-    z-index: 502;
-    background: rgba(13, 24, 38, 0.96);
+    top: 56px; right: 14px;
+    z-index: 702;
+    background: rgba(13, 24, 38, 0.98);
     border: 1px solid #2f4153;
     border-radius: 6px;
     padding: 6px 0;
@@ -423,8 +412,6 @@
     overflow-y: auto;
     display: none;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
-    -webkit-backdrop-filter: blur(8px);
-            backdrop-filter: blur(8px);
   }
   #langPanel.open { display: block; }
   .lang-opt {
@@ -444,59 +431,39 @@
   .lang-opt:hover { background: rgba(255, 255, 255, 0.04); color: #d8d8d8; }
   .lang-opt.active { color: #fff; background: rgba(255, 255, 255, 0.05); }
 
-  .msg-translation {
-    margin-top: 10px;
-    padding-top: 8px;
-    border-top: 1px dashed rgba(255, 255, 255, 0.1);
-  }
-  .msg-translation-label {
-    font-size: 9px;
-    color: rgba(255, 255, 255, 0.4);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    margin-bottom: 4px;
-  }
-  .msg-translation-text {
-    font-size: 13.5px;
-    color: rgba(255, 255, 255, 0.75);
-    line-height: 1.5;
-    word-wrap: break-word;
-    white-space: pre-wrap;
-  }
-
   #dropBtn {
     position: fixed;
     bottom: 26px; left: 50%;
     transform: translateX(-50%);
-    width: 46px; height: 46px;
+    width: 58px; height: 58px;
     border-radius: 50%;
-    border: 1px solid #e8e8e8;
-    background: #ffffff;
-    color: #1a1a1a;
-    font-size: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.12);
+    -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 26px;
     font-weight: 200;
     line-height: 1;
     cursor: pointer;
     z-index: 600;
-    box-shadow: 0 2px 14px rgba(0,0,0,0.07);
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 0 0 3px 0;
+    padding: 0;
   }
   #dropBtn:hover {
     transform: translateX(-50%) scale(1.07);
-    box-shadow: 0 3px 18px rgba(0,0,0,0.1);
+    background: rgba(255, 255, 255, 0.18);
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
   }
   #dropBtn:active { transform: translateX(-50%) scale(0.96); }
   #dropBtn:disabled { opacity: 0.45; cursor: not-allowed; }
 
   #geoMsg {
     position: fixed; inset: 0;
-    background: rgba(255,255,255,0.55);
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px);
+    background: rgba(10, 18, 30, 0.78);
     display: none;
     align-items: center;
     justify-content: center;
@@ -532,28 +499,104 @@
     border-radius: 100px;
     pointer-events: none;
   }
+
+  /* Language onboarding — first-time visit only */
+  #langOnboard {
+    position: fixed;
+    top: 0; right: 0; bottom: 0; left: 0;
+    z-index: 1100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(10, 25, 41, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    overflow-y: auto;
+  }
+  #langOnboard.show { opacity: 1; pointer-events: auto; }
+  .lang-onboard-card {
+    margin: auto;
+    background: rgba(255, 255, 255, 0.07);
+    -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+    border: 0.5px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 28px 32px 24px;
+    width: min(440px, 92vw);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  }
+  .lang-onboard-eyebrow {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .lang-onboard-title {
+    font-size: 20px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.95);
+    margin: 0 0 22px;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+  .lang-onboard-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+  .lang-pill {
+    background: rgba(255, 255, 255, 0.05);
+    border: 0.5px solid rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.7);
+    padding: 8px 13px;
+    font: inherit;
+    font-size: 12.5px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .lang-pill:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.25);
+    color: rgba(255, 255, 255, 0.95);
+  }
 </style>
 </head>
 <body>
-<div id="title">Hello, World</div>
-
-<button id="langBtn" type="button" aria-label="translation language" aria-haspopup="true" aria-expanded="false">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <circle cx="12" cy="12" r="9"/>
-    <path d="M3 12h18"/>
-    <path d="M12 3a14 14 0 0 1 0 18"/>
-    <path d="M12 3a14 14 0 0 0 0 18"/>
-  </svg>
-</button>
+<nav id="topNav">
+  <div class="nav-left">
+    <div id="title">Hello, World</div>
+  </div>
+  <div class="nav-right">
+    <div id="resetTimer" aria-live="off"></div>
+    <button id="langBtn" type="button" aria-label="translation language" aria-haspopup="true" aria-expanded="false">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M3 12h18"/>
+        <path d="M12 3a14 14 0 0 1 0 18"/>
+        <path d="M12 3a14 14 0 0 0 0 18"/>
+      </svg>
+    </button>
+  </div>
+</nav>
 <div id="langPanel" role="menu" aria-labelledby="langBtn"></div>
 
 <div id="map"></div>
 <div id="hint" class="gone"></div>
 
-<div id="resetTimer" aria-live="off"></div>
-
 <button id="dropBtn" type="button" aria-label="leave a message">+</button>
 
+
+<div id="langOnboard" role="dialog" aria-modal="true" aria-labelledby="langOnboardTitle">
+  <div class="lang-onboard-card">
+    <div class="lang-onboard-eyebrow">Hello, World</div>
+    <h2 id="langOnboardTitle" class="lang-onboard-title">What language do you read in?</h2>
+    <div class="lang-onboard-grid"></div>
+  </div>
+</div>
 
 <div id="geoMsg" role="dialog" aria-modal="true">
   <div class="geo-card">
@@ -567,14 +610,6 @@
     <div class="compose-loc" id="composeLoc">somewhere</div>
     <textarea id="composeText" maxlength="280" placeholder="say something to the world..."></textarea>
     <div class="mood-picker" id="moodPicker"></div>
-    <div class="photo-row">
-      <button id="photoBtn" type="button" class="photo-btn" hidden>+ photo</button>
-      <div id="photoPreview" class="photo-preview" hidden>
-        <img id="photoPreviewImg" alt="" />
-        <button id="photoRemove" type="button" class="photo-remove" aria-label="remove photo">&times;</button>
-      </div>
-    </div>
-    <input type="file" id="photoInput" accept="image/*" capture="environment" hidden />
     <div id="composeError" class="compose-error" hidden></div>
     <div class="compose-actions">
       <div class="counter" id="counter">280</div>
@@ -589,6 +624,36 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 "use strict";
+
+// ───────────── SUPABASE ─────────────
+const SUPABASE_URL = "https://sxofvadbeznwgctdzbmk.supabase.co";
+const SUPABASE_KEY = "sb_publishable_j9BUYILtg52cqg0-CnioZQ_iFi5Z0Yx";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Convert a Supabase row into the in-memory message shape used by the rest of
+// the app. `mine` is always false here — the local "mine" flag is set
+// separately based on what's in localStorage on this device.
+function rowToMsg(row, mineIds) {
+  return {
+    id: row.id,
+    text: row.text,
+    lat: row.lat,
+    lng: row.lng,
+    loc: row.loc || "",
+    mood: row.mood,
+    mine: mineIds.has(row.id)
+  };
+}
+
+// Returns an ISO timestamp for "midnight UTC of today" — used to filter the
+// messages table down to just today's drops.
+function todayMidnightUTC() {
+  const now = new Date();
+  return new Date(Date.UTC(
+    now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0
+  )).toISOString();
+}
+
 
 // ───────────── MOODS ─────────────
 const MOODS = [
@@ -1053,11 +1118,9 @@ const SEED = [
   // ── Cluster-test seeds (dense regional clusters, 50 total) ──
 
   // Western Europe (15)
-  { lat: 51.5270, lng:  -0.0780, loc: "London, UK",          mood: "joyful",   text: "found a perfect coffee shop in shoreditch this morning", photo: "https://picsum.photos/seed/hw-london-coffee/420/280" },
   { lat: 51.5200, lng:  -0.1050, loc: "London, UK",          mood: "lonely",   text: "the tube is crowded and somehow nobody talks" },
   { lat: 51.5150, lng:  -0.1300, loc: "London, UK",          mood: "anxious",  text: "interview in two hours, hands won't stop shaking" },
   { lat: 51.5000, lng:  -0.1500, loc: "London, UK",          mood: "grateful", text: "my mum sent me a voice note today, made me cry" },
-  { lat: 48.8570, lng:   2.3410, loc: "Paris, France",       mood: "calm",     text: "watched the seine flow at golden hour", photo: "https://picsum.photos/seed/hw-paris-seine/420/280" },
   { lat: 48.8640, lng:   2.3300, loc: "Paris, France",       mood: "curious",  text: "every café in this city has its own kind of silence" },
   { lat: 48.8730, lng:   2.3560, loc: "Paris, France",       mood: "grateful", text: "first time my french teacher said i sounded local" },
   { lat: 48.8470, lng:   2.3760, loc: "Paris, France",       mood: "anxious",  text: "rent is due and the freelance check still hasn't come" },
@@ -1070,12 +1133,10 @@ const SEED = [
   { lat: 40.4120, lng:  -3.7100, loc: "Madrid, Spain",       mood: "joyful",   text: "tapas with strangers turned into 4am conversations" },
 
   // Southeast Asia (10)
-  { lat: 13.7560, lng: 100.5020, loc: "Bangkok, Thailand",   mood: "joyful",   text: "street food at 11pm, life is so full", photo: "https://picsum.photos/seed/hw-bangkok-street/420/280" },
   { lat: 13.7470, lng: 100.4900, loc: "Bangkok, Thailand",   mood: "calm",     text: "the temple was empty this morning, just me and the bells" },
   { lat: 13.7640, lng: 100.5200, loc: "Bangkok, Thailand",   mood: "curious",  text: "talked to a monk who's been silent for six years" },
   { lat:  1.3520, lng: 103.8200, loc: "Singapore",           mood: "anxious",  text: "everyone moves so fast here, can't keep up" },
   { lat:  1.3450, lng: 103.8100, loc: "Singapore",           mood: "hopeful",  text: "got the offer letter today. moving to tanjong pagar" },
-  { lat:  1.3600, lng: 103.8300, loc: "Singapore",           mood: "calm",     text: "watching the planes land at changi from the rooftop", photo: "https://picsum.photos/seed/hw-singapore-sky/420/280" },
   { lat: -6.2080, lng: 106.8460, loc: "Jakarta, Indonesia",  mood: "sad",      text: "stuck in traffic for two hours again" },
   { lat: -6.2150, lng: 106.8350, loc: "Jakarta, Indonesia",  mood: "grateful", text: "my grandma made rendang for the whole family today" },
   { lat: 14.6000, lng: 120.9840, loc: "Manila, Philippines", mood: "curious",  text: "a kid asked me what dreams are. i didn't have a good answer" },
@@ -1083,33 +1144,27 @@ const SEED = [
 
   // US East Coast (10)
   { lat: 40.7130, lng: -74.0060, loc: "New York, NY",        mood: "anxious",  text: "subway delays again. third time this week" },
-  { lat: 40.7850, lng: -73.9680, loc: "New York, NY",        mood: "joyful",   text: "saw a guy serenade his girlfriend with a sax in central park", photo: "https://picsum.photos/seed/hw-nyc-park/420/280" },
   { lat: 40.7300, lng: -73.9980, loc: "New York, NY",        mood: "lonely",   text: "8 million people and nobody texts back" },
   { lat: 40.7450, lng: -73.9900, loc: "New York, NY",        mood: "grateful", text: "stranger paid for my coffee this morning" },
   { lat: 40.7140, lng: -74.0020, loc: "New York, NY",        mood: "joyful",   text: "got married at city hall today. just us and the witness" },
-  { lat: 42.3760, lng: -71.1170, loc: "Boston, MA",          mood: "curious",  text: "wonder how many books are in this harvard library tonight", photo: "https://picsum.photos/seed/hw-boston-library/420/280" },
   { lat: 42.3600, lng: -71.0580, loc: "Boston, MA",          mood: "hopeful",  text: "first day of my phd. terrified but excited" },
   { lat: 42.3500, lng: -71.0720, loc: "Boston, MA",          mood: "sad",      text: "the only friend i made here is moving back to california" },
   { lat: 38.9070, lng: -77.0360, loc: "Washington, DC",      mood: "angry",    text: "another protest blocked the way home. sympathetic but tired" },
   { lat: 38.8860, lng: -77.0380, loc: "Washington, DC",      mood: "calm",     text: "the cherry blossoms are starting in tidal basin" },
 
   // India (10)
-  { lat: 19.0760, lng:  72.8770, loc: "Mumbai, India",       mood: "joyful",   text: "monsoon hit and the whole city smelled like wet earth", photo: "https://picsum.photos/seed/hw-mumbai-rain/420/280" },
   { lat: 19.0850, lng:  72.8600, loc: "Mumbai, India",       mood: "anxious",  text: "parents found out about the relationship today" },
   { lat: 19.0700, lng:  72.8900, loc: "Mumbai, India",       mood: "lonely",   text: "arranged marriage talks have started. i'm not ready" },
   { lat: 28.6140, lng:  77.2090, loc: "Delhi, India",        mood: "curious",  text: "the chai wala remembered my order after one visit" },
   { lat: 28.6250, lng:  77.2200, loc: "Delhi, India",        mood: "angry",    text: "AQI is 380 and i have a marathon in two days" },
   { lat: 28.6050, lng:  77.1980, loc: "Delhi, India",        mood: "hopeful",  text: "got into IIT today. mom cried" },
   { lat: 28.6200, lng:  77.2300, loc: "Delhi, India",        mood: "joyful",   text: "auntie made aloo paratha exactly like nani used to" },
-  { lat: 12.9720, lng:  77.5950, loc: "Bengaluru, India",    mood: "calm",     text: "rooftop coffee, slow morning, no meetings until 11", photo: "https://picsum.photos/seed/hw-blr-rooftop/420/280" },
   { lat: 12.9650, lng:  77.6040, loc: "Bengaluru, India",    mood: "sad",      text: "my grandfather passed away last night. flying home tomorrow" },
   { lat: 12.9800, lng:  77.5850, loc: "Bengaluru, India",    mood: "grateful", text: "my team brought a cake for my work anniversary" },
 
   // Japan (5)
-  { lat: 35.6710, lng: 139.6940, loc: "Tokyo, Japan",        mood: "calm",     text: "yoyogi park at 6am is perfect", photo: "https://picsum.photos/seed/hw-tokyo-yoyogi/420/280" },
   { lat: 35.6800, lng: 139.7600, loc: "Tokyo, Japan",        mood: "lonely",   text: "salaryman mode for the third year. when does it end" },
   { lat: 35.6900, lng: 139.7000, loc: "Tokyo, Japan",        mood: "hopeful",  text: "passed JLPT N2 today. finally" },
-  { lat: 34.6940, lng: 135.5020, loc: "Osaka, Japan",        mood: "joyful",   text: "okonomiyaki with my dad after five years", photo: "https://picsum.photos/seed/hw-osaka-food/420/280" },
   { lat: 34.6850, lng: 135.4950, loc: "Osaka, Japan",        mood: "curious",  text: "the obachan at the station gives me ginger candy every day" }
 ];
 
@@ -1229,12 +1284,14 @@ function applyVerticalFit(initial) {
   const h = map.getSize().y;
   if (!h) return;
   const fitZoom = Math.log2(h / 256);
-  const minZ = Math.max(1, fitZoom);
+  // Cap minZoom at 2.3 so the locked starting zoom is always allowed,
+  // even on very tall viewports where the world-fit zoom would exceed it.
+  const minZ = Math.min(2.3, Math.max(1, fitZoom));
   map.setMinZoom(minZ);
   if (initial) {
-    map.setView([0, 0], minZ, { animate: false });
+    map.setView([20, 10], 2.3, { animate: false });
   } else if (map.getZoom() < minZ) {
-    map.setView([0, map.getCenter().lng], minZ, { animate: false });
+    map.setView(map.getCenter(), minZ, { animate: false });
   }
 }
 applyVerticalFit(true);
@@ -1244,7 +1301,21 @@ map.createPane("countryPane");
 map.getPane("countryPane").style.zIndex = 350;
 map.getPane("countryPane").style.pointerEvents = "none";
 
-// (tile layer removed — landmasses rendered as SVG silhouette below)
+// ───────────── COUNTRY GEOJSON ─────────────
+const COUNTRIES_URL = "https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_0_countries.geojson";
+
+let countriesGeoJSON = null;
+let countriesLayer = null;
+async function loadCountries() {
+  try {
+    const r = await fetch(COUNTRIES_URL, { cache: "force-cache" });
+    if (!r.ok) throw new Error("fetch failed");
+    countriesGeoJSON = await r.json();
+  } catch (e) {
+    console.warn("Countries GeoJSON unavailable; falling back to dots-only mode.", e);
+    countriesGeoJSON = null;
+  }
+}
 
 // Inverted wheel zoom — swipe up always zooms in
 map.scrollWheelZoom.disable();
@@ -1252,14 +1323,18 @@ map.scrollWheelZoom.disable();
   let accum = 0;
   let target = null;
   let frame = null;
+  let lastEvent = null;
   map.getContainer().addEventListener("wheel", function (e) {
     e.preventDefault();
     // Trackpad pinch fires wheel with ctrlKey=true — keep that natural (pinch out = zoom in)
     const sign = e.ctrlKey ? -1 : 1;
     accum += sign * e.deltaY;
-    target = map.mouseEventToContainerPoint(e);
+    lastEvent = e;
     if (frame) return;
     frame = requestAnimationFrame(() => {
+      // Defer the forced-layout read (mouseEventToContainerPoint -> getBoundingClientRect)
+      // until rAF so we do it at most once per frame, not once per wheel tick.
+      target = map.mouseEventToContainerPoint(lastEvent);
       const change = accum / 100;
       const next = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), map.getZoom() + change));
       map.setZoomAround(target, next, { animate: true, duration: 0.3, easeLinearity: 0.05 });
@@ -1269,87 +1344,6 @@ map.scrollWheelZoom.disable();
   }, { passive: false });
 })();
 
-// ───────────── COUNTRY GEOJSON ─────────────
-const COUNTRIES_URL = "https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_0_countries.geojson";
-
-let countriesGeoJSON = null;
-let countriesLayer = null;
-let countryAvg = new Map();   // country name -> hex
-let continentAvg = new Map(); // continent name -> hex
-
-async function loadCountries() {
-  try {
-    const r = await fetch(COUNTRIES_URL, { cache: "force-cache" });
-    if (!r.ok) throw new Error("fetch failed");
-    countriesGeoJSON = await r.json();
-    // precompute bbox per feature
-    for (const f of countriesGeoJSON.features) {
-      if (!f.bbox) f.bbox = computeBBox(f);
-    }
-  } catch (e) {
-    console.warn("Countries GeoJSON unavailable; falling back to dots-only mode.", e);
-    countriesGeoJSON = null;
-  }
-}
-
-function computeBBox(feature) {
-  let minX = 180, minY = 90, maxX = -180, maxY = -90;
-  const visit = (coords) => {
-    if (typeof coords[0] === "number") {
-      const [x, y] = coords;
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-    } else {
-      for (const c of coords) visit(c);
-    }
-  };
-  visit(feature.geometry.coordinates);
-  return [minX, minY, maxX, maxY];
-}
-
-// ───────────── POINT-IN-POLYGON ─────────────
-function pointInRing(x, y, ring) {
-  let inside = false;
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const xi = ring[i][0], yi = ring[i][1];
-    const xj = ring[j][0], yj = ring[j][1];
-    const intersect = ((yi > y) !== (yj > y)) &&
-      (x < ((xj - xi) * (y - yi)) / (yj - yi || 1e-12) + xi);
-    if (intersect) inside = !inside;
-  }
-  return inside;
-}
-function pointInPoly(x, y, polygon) {
-  // polygon: [outer, ...holes]
-  if (!pointInRing(x, y, polygon[0])) return false;
-  for (let i = 1; i < polygon.length; i++) {
-    if (pointInRing(x, y, polygon[i])) return false; // in a hole
-  }
-  return true;
-}
-function pointInFeature(x, y, feature) {
-  const g = feature.geometry;
-  if (g.type === "Polygon") return pointInPoly(x, y, g.coordinates);
-  if (g.type === "MultiPolygon") {
-    for (const poly of g.coordinates) {
-      if (pointInPoly(x, y, poly)) return true;
-    }
-  }
-  return false;
-}
-function findCountry(lat, lng) {
-  if (!countriesGeoJSON) return null;
-  const x = lng, y = lat;
-  for (const f of countriesGeoJSON.features) {
-    const b = f.bbox;
-    if (x < b[0] || x > b[2] || y < b[1] || y > b[3]) continue;
-    if (pointInFeature(x, y, f)) return f;
-  }
-  return null;
-}
-
 // ───────────── STATE ─────────────
 let messages = []; // combined seed + user
 const dotMarkers = new Map();
@@ -1358,46 +1352,10 @@ const dotLayer = L.layerGroup();
 function buildMessages() {
   const seedMsgs = SEED.map(s => ({
     id: "seed-" + s.lat.toFixed(3) + "-" + s.lng.toFixed(3) + "-" + s.mood,
-    lat: s.lat, lng: s.lng, loc: s.loc, mood: s.mood, text: s.text, mine: false,
-    photo: s.photo || null
+    lat: s.lat, lng: s.lng, loc: s.loc, mood: s.mood, text: s.text, mine: false
   }));
   const userMsgs = loadUserMessages();
   messages = [...seedMsgs, ...userMsgs];
-}
-
-function assignCountriesToAll() {
-  for (const m of messages) {
-    if (m._country !== undefined) continue;
-    const f = findCountry(m.lat, m.lng);
-    if (f) {
-      m._country = f.properties.NAME || f.properties.ADMIN || null;
-      m._continent = f.properties.CONTINENT || null;
-    } else {
-      m._country = null;
-      m._continent = null;
-    }
-  }
-}
-
-function recomputeAggregates() {
-  const byCountry = new Map();
-  const byContinent = new Map();
-  for (const m of messages) {
-    const color = MOOD_BY_ID[m.mood]?.color;
-    if (!color) continue;
-    if (m._country) {
-      if (!byCountry.has(m._country)) byCountry.set(m._country, []);
-      byCountry.get(m._country).push(color);
-    }
-    if (m._continent) {
-      if (!byContinent.has(m._continent)) byContinent.set(m._continent, []);
-      byContinent.get(m._continent).push(color);
-    }
-  }
-  countryAvg = new Map();
-  for (const [k, v] of byCountry) countryAvg.set(k, averageColors(v));
-  continentAvg = new Map();
-  for (const [k, v] of byContinent) continentAvg.set(k, averageColors(v));
 }
 
 // ───────────── RENDERING ─────────────
@@ -1405,6 +1363,16 @@ function dotIconHtml(mood, mine) {
   const color = MOOD_BY_ID[mood]?.color || "#1a1a1a";
   const soft = rgba(color, 0.45);
   return `<div class="dot${mine ? " mine" : ""}" style="--c:${color}; --c-soft:${soft};"></div>`;
+}
+
+// Hover-preview tooltips only bind on real pointer devices. Touch screens fall
+// through and keep the unchanged tap-to-popup behavior.
+const IS_HOVER_DEVICE = matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+function firstLine(text) {
+  if (!text) return "";
+  const line = text.split(/\r?\n/)[0].trim();
+  return line.length > 80 ? line.slice(0, 80).trim() + "…" : line;
 }
 
 function addDotMarker(msg) {
@@ -1419,16 +1387,27 @@ function addDotMarker(msg) {
     closeButton: false,
     minWidth: 220,
     maxWidth: 220,
-    autoPan: true,
-    autoPanPadding: [30, 30]
+    autoPan: false
   });
+
+  if (IS_HOVER_DEVICE && msg.text) {
+    m.bindTooltip(escapeHtml(firstLine(msg.text)), {
+      direction: "top",
+      offset: [0, -6],
+      opacity: 1,
+      className: "dot-tooltip"
+    });
+  }
 
   m.on("popupopen", () => {
     const el = m.getElement();
     if (el) { const d = el.querySelector(".dot"); if (d) d.classList.add("expanded"); }
-    const popupEl = m.getPopup() && m.getPopup().getElement();
-    const textEl = popupEl && popupEl.querySelector(".msg-text");
-    if (textEl && !textEl.dataset.bound) {
+    // Defer the scrollHeight read (forces layout) and clampable wiring out of the
+    // click frame so tap → popup feels instant, then we set up clamping next tick.
+    requestAnimationFrame(() => {
+      const popupEl = m.getPopup() && m.getPopup().getElement();
+      const textEl = popupEl && popupEl.querySelector(".msg-text");
+      if (!textEl || textEl.dataset.bound) return;
       textEl.dataset.bound = "1";
       if (textEl.scrollHeight > textEl.clientHeight + 1) {
         textEl.classList.add("clampable");
@@ -1439,7 +1418,7 @@ function addDotMarker(msg) {
         const p = m.getPopup();
         if (p && p.update) p.update();
       });
-    }
+    });
   });
   m.on("popupclose", () => {
     const el = m.getElement();
@@ -1453,29 +1432,42 @@ function addDotMarker(msg) {
 function buildPopup(msg) {
   const wrap = document.createElement("div");
   const mood = MOOD_BY_ID[msg.mood];
-  const photoHtml = msg.photo
-    ? `<div class="msg-photo"><img src="${msg.photo}" alt=""></div>`
-    : "";
+  const target = getCurrentLang();
+
+  // If a translation for this message+lang is already resolved, paint it on
+  // first render — no async replacement, no layout thrash on re-open.
+  let displayText = msg.text;
+  if (target && target !== "off" && msg.text) {
+    const cached = getTranslatedNow(msg.text, target);
+    if (cached && normalizeForCompare(cached) !== normalizeForCompare(msg.text)) {
+      displayText = cached;
+    }
+  }
+
   wrap.innerHTML =
-    `<div class="msg-text">${escapeHtml(msg.text)}</div>` +
-    `<div class="msg-translation" hidden></div>` +
-    photoHtml +
+    `<div class="msg-text">${escapeHtml(displayText)}</div>` +
     `<div class="msg-meta">` +
       `<span class="msg-mood" style="--c:${mood?.color || "#999"}">${escapeHtml(mood?.name || msg.mood)}</span>` +
       `<span class="msg-divider">·</span>` +
       `<span class="msg-loc">${escapeHtml(msg.loc || "")}</span>` +
     `</div>`;
 
-  const target = getCurrentLang();
-  if (target && target !== "off" && msg.text) {
-    const tEl = wrap.querySelector(".msg-translation");
+  // First-time path: kick off the fetch and replace the text when it resolves.
+  // If displayText is already the translation, we don't need to do anything.
+  if (target && target !== "off" && msg.text && displayText === msg.text) {
+    const textEl = wrap.querySelector(".msg-text");
     translate(msg.text, target).then((t) => {
       if (!t) return;
+      if (!textEl.isConnected || getCurrentLang() !== target) return;
       if (normalizeForCompare(t) === normalizeForCompare(msg.text)) return;
-      tEl.innerHTML =
-        `<div class="msg-translation-label">translated</div>` +
-        `<div class="msg-translation-text">${escapeHtml(t)}</div>`;
-      tEl.hidden = false;
+      if (textEl.textContent === t) return;
+      textEl.textContent = t;
+      requestAnimationFrame(() => {
+        textEl.classList.remove("clampable", "expanded");
+        if (textEl.scrollHeight > textEl.clientHeight + 1) {
+          textEl.classList.add("clampable");
+        }
+      });
       const m = dotMarkers.get(msg.id);
       const p = m && m.getPopup && m.getPopup();
       if (p && p.update) p.update();
@@ -1580,7 +1572,6 @@ function openCompose(latlng) {
   composeText.value = "";
   selectedMood = null;
   [...moodPickerEl.children].forEach(c => c.classList.remove("selected"));
-  resetPhotoState();
   clearComposeError();
   updateCounter();
   updateSendEnabled();
@@ -1618,7 +1609,7 @@ function clearComposeError() {
   composeError.hidden = true;
 }
 
-function submit() {
+async function submit() {
   const text = composeText.value.trim();
   if (!text || text.length > 280 || !pendingLatLng || !selectedMood) return;
   if (URL_RE.test(text)) {
@@ -1628,30 +1619,48 @@ function submit() {
   if (hasDroppedToday()) { closeCompose(false); return; }
 
   const ll = pendingLatLng;
-  const f = findCountry(ll.lat, ll.lng);
+  const loc = nearestCity(ll.lat, ll.lng);
+
+  // Lock the send button while the network call is in flight so a double-tap
+  // can't create two rows.
+  sendBtn.disabled = true;
+
+  // Write to Supabase. We let the database generate the UUID and return it so
+  // the in-memory id matches the database id (important for realtime: the
+  // INSERT event echoes back to this client and we need to recognize our own
+  // row to skip it).
+  const { data, error } = await sb
+    .from("messages")
+    .insert({ text, lat: ll.lat, lng: ll.lng, loc, mood: selectedMood })
+    .select()
+    .single();
+
+  if (error || !data) {
+    sendBtn.disabled = false;
+    showComposeError("couldn't send. check your connection and try again.");
+    return;
+  }
+
   const msg = {
-    id: makeId(),
-    text,
-    lat: ll.lat,
-    lng: ll.lng,
-    loc: nearestCity(ll.lat, ll.lng),
-    mood: selectedMood,
-    mine: true,
-    photo: pendingPhoto || null,
-    _country: f ? (f.properties.NAME || f.properties.ADMIN || null) : null,
-    _continent: f ? (f.properties.CONTINENT || null) : null
+    id: data.id,
+    text: data.text,
+    lat: data.lat,
+    lng: data.lng,
+    loc: data.loc || loc,
+    mood: data.mood,
+    mine: true
   };
 
-  // Persist user-only messages
+  // Persist user-only messages (localStorage stays as the client-side
+  // "you've already dropped today" guard)
   const userMsgs = loadUserMessages();
   userMsgs.push({
     id: msg.id, text: msg.text, lat: msg.lat, lng: msg.lng,
-    loc: msg.loc, mood: msg.mood, mine: true, photo: msg.photo
+    loc: msg.loc, mood: msg.mood, mine: true
   });
   saveUserMessages(userMsgs);
 
   messages.push(msg);
-  recomputeAggregates();
 
   clearPreview();
   addDotMarker(msg);
@@ -1712,14 +1721,42 @@ function setLang(code) {
     });
     langPanel.appendChild(btn);
   }
-  let initial = localStorage.getItem(LANG_KEY);
-  if (!initial) {
-    const b = (navigator.language || "en").slice(0, 2).toLowerCase();
-    initial = LANGS.some(l => l.code === b) ? b : "off";
+  // Don't auto-persist a detected default — the first-time onboarding card
+  // (below) collects an explicit choice from the user. If localStorage has a
+  // value (returning visitor), reflect it visually in the panel.
+  const initial = localStorage.getItem(LANG_KEY);
+  if (initial) {
+    for (const opt of langPanel.children) {
+      opt.classList.toggle("active", opt.dataset.code === initial);
+    }
   }
-  for (const opt of langPanel.children) {
-    opt.classList.toggle("active", opt.dataset.code === initial);
+})();
+
+// First-time language onboarding — only shows if the user has never picked one.
+(function maybeShowLangOnboarding() {
+  if (localStorage.getItem(LANG_KEY)) return;
+  const onboard = document.getElementById("langOnboard");
+  const grid = onboard.querySelector(".lang-onboard-grid");
+  // Show "no translation" first, then the 16 language options.
+  const items = [
+    { code: "off", label: "no translation" },
+    ...LANGS.filter(l => l.code !== "off")
+  ];
+  for (const l of items) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "lang-pill";
+    btn.dataset.code = l.code;
+    btn.textContent = l.label;
+    btn.addEventListener("click", () => {
+      setLang(l.code);
+      onboard.classList.remove("show");
+      // Remove from DOM after the fade-out completes.
+      setTimeout(() => onboard.remove(), 600);
+    });
+    grid.appendChild(btn);
   }
+  setTimeout(() => onboard.classList.add("show"), 1000);
 })();
 
 function openLangPanel() {
@@ -1745,93 +1782,43 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && langPanel.classList.contains("open")) closeLangPanel();
 });
 
+// translationCache stores in-flight/resolved Promises so concurrent calls for
+// the same text+lang share one fetch. translatedSync stores the resolved string
+// synchronously so popup re-opens for already-translated messages can paint the
+// translated text immediately, skipping the replace-and-relayout work that
+// causes a stutter on re-open.
 const translationCache = new Map();
-async function translate(text, targetLang) {
+const translatedSync = new Map();
+function getTranslatedNow(text, targetLang) {
+  return translatedSync.get(`${targetLang}::${text}`) || null;
+}
+function translate(text, targetLang) {
   const key = `${targetLang}::${text}`;
   if (translationCache.has(key)) return translationCache.get(key);
-  try {
-    const url = "https://lingva.ml/api/v1/auto/"
-      + encodeURIComponent(targetLang) + "/"
-      + encodeURIComponent(text);
-    const r = await fetch(url);
-    if (!r.ok) throw new Error("translate fetch failed");
-    const data = await r.json();
-    const t = data && data.translation;
-    const result = (typeof t === "string" && t.trim()) ? t : null;
-    translationCache.set(key, result);
-    return result;
-  } catch (e) {
-    translationCache.set(key, null);
-    return null;
-  }
+  const p = (async () => {
+    try {
+      const url = "https://lingva.ml/api/v1/auto/"
+        + encodeURIComponent(targetLang) + "/"
+        + encodeURIComponent(text);
+      const r = await fetch(url);
+      if (!r.ok) throw new Error("translate fetch failed");
+      const data = await r.json();
+      const t = data && data.translation;
+      const result = (typeof t === "string" && t.trim()) ? t : null;
+      if (result) translatedSync.set(key, result);
+      return result;
+    } catch (e) {
+      translationCache.delete(key);
+      return null;
+    }
+  })();
+  translationCache.set(key, p);
+  return p;
 }
 
 function normalizeForCompare(s) {
   return (s || "").toLowerCase().replace(/\s+/g, " ").trim();
 }
-
-// ───────────── PHOTO ─────────────
-const photoBtn = document.getElementById("photoBtn");
-const photoInput = document.getElementById("photoInput");
-const photoPreview = document.getElementById("photoPreview");
-const photoPreviewImg = document.getElementById("photoPreviewImg");
-const photoRemove = document.getElementById("photoRemove");
-
-const isCoarsePointer = matchMedia("(pointer: coarse)").matches;
-let pendingPhoto = null;
-
-function resetPhotoState() {
-  pendingPhoto = null;
-  photoPreview.hidden = true;
-  photoPreviewImg.removeAttribute("src");
-  photoBtn.hidden = !isCoarsePointer;
-}
-
-function processPhoto(file) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const MAX = 1024;
-      let w = img.naturalWidth, h = img.naturalHeight;
-      if (w > MAX || h > MAX) {
-        const r = Math.min(MAX / w, MAX / h);
-        w = Math.round(w * r);
-        h = Math.round(h * r);
-      }
-      const canvas = document.createElement("canvas");
-      canvas.width = w; canvas.height = h;
-      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-      resolve(canvas.toDataURL("image/jpeg", 0.78));
-    };
-    img.onerror = (err) => { URL.revokeObjectURL(url); reject(err); };
-    img.src = url;
-  });
-}
-
-photoBtn.addEventListener("click", () => photoInput.click());
-
-photoInput.addEventListener("change", async () => {
-  const file = photoInput.files && photoInput.files[0];
-  photoInput.value = "";
-  if (!file) return;
-  try {
-    pendingPhoto = await processPhoto(file);
-    photoPreviewImg.src = pendingPhoto;
-    photoPreview.hidden = false;
-    photoBtn.hidden = true;
-  } catch (e) {
-    console.warn("photo processing failed", e);
-  }
-});
-
-photoRemove.addEventListener("click", () => {
-  pendingPhoto = null;
-  photoPreview.hidden = true;
-  photoPreviewImg.removeAttribute("src");
-  if (isCoarsePointer) photoBtn.hidden = false;
-});
 
 // ───────────── DROP BUTTON + GEOLOCATION ─────────────
 const dropBtn = document.getElementById("dropBtn");
@@ -1952,7 +1939,6 @@ window.resetMyDot = function () {
     }
   }
   messages = messages.filter(m => !m.mine);
-  recomputeAggregates();
   clearPreview();
   hint.classList.add("gone");
   dropBtn.disabled = false;
@@ -1965,8 +1951,68 @@ window.resetMyDot = function () {
   buildMessages();
   rebuildDots();
   if (!map.hasLayer(dotLayer)) dotLayer.addTo(map);
-  await loadCountries();
-  buildCountriesLayer();
+
+  // Country layer is heavy (~177 SVG paths). Load and render it AFTER first
+  // paint so dots and UI come up immediately. Use requestIdleCallback to slot
+  // the SVG build into a quiet frame, with a setTimeout fallback.
+  loadCountries().then(() => {
+    const run = () => buildCountriesLayer();
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(run, { timeout: 1500 });
+    } else {
+      setTimeout(run, 100);
+    }
+  });
+
+  // ── Fetch today's real dots from Supabase ──
+  // Build a set of IDs we know are "ours" (already in localStorage) so we can
+  // flag them correctly when they come back from the database.
+  const mineIds = new Set(loadUserMessages().map(m => m.id));
+
+  try {
+    const { data, error } = await sb
+      .from("messages")
+      .select("id, text, lat, lng, loc, mood, created_at")
+      .gte("created_at", todayMidnightUTC())
+      .order("created_at", { ascending: true });
+
+    if (!error && Array.isArray(data)) {
+      // Skip any rows already in the in-memory messages array (covers the case
+      // where boot races with realtime, or the user just dropped a dot).
+      const existingIds = new Set(messages.map(m => m.id));
+      for (const row of data) {
+        if (existingIds.has(row.id)) continue;
+        const msg = rowToMsg(row, mineIds);
+        messages.push(msg);
+        addDotMarker(msg);
+      }
+      updateLayers();
+    } else if (error) {
+      console.warn("[supabase] initial fetch failed:", error.message);
+    }
+  } catch (e) {
+    console.warn("[supabase] initial fetch threw:", e);
+  }
+
+  // ── Realtime: subscribe to new inserts ──
+  // Anyone in the world drops a dot, this fires on every connected client.
+  sb.channel("messages-realtime")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "messages" },
+      (payload) => {
+        const row = payload.new;
+        if (!row || !row.id) return;
+        // Skip if we already have this dot — covers the case where this client
+        // is the one that inserted it (we already added it to the map in submit()).
+        if (dotMarkers.has(row.id)) return;
+        const msg = rowToMsg(row, mineIds);
+        messages.push(msg);
+        addDotMarker(msg);
+        updateLayers();
+      }
+    )
+    .subscribe();
 })();
 </script>
 </body>
