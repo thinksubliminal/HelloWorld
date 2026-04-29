@@ -352,16 +352,20 @@
 
   #hint {
     position: fixed;
-    bottom: 116px; left: 50%;
+    bottom: 110px; left: 50%;
     transform: translateX(-50%);
     font-size: 10px;
-    color: #999;
-    background: rgba(255,255,255,0.9);
-    padding: 5px 14px;
+    color: rgba(255, 255, 255, 0.55);
+    background: rgba(13, 24, 38, 0.55);
+    -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+    border: 1px solid #2f4153;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    padding: 6px 14px;
     border-radius: 100px;
     z-index: 500;
     pointer-events: none;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     transition: opacity 1s ease;
     white-space: nowrap;
@@ -370,6 +374,7 @@
 
   #title {
     font-size: 12px;
+    font-weight: 600;
     color: #999;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -988,185 +993,7 @@ const CITIES = [
 ];
 
 // ───────────── SEED MESSAGES (100) ─────────────
-const SEED = [
-  // Africa (12)
-  { lat:  6.5244, lng:   3.3792, loc: "Lagos, Nigeria",      mood: "anxious",  text: "stuck in traffic for three hours. heard a great podcast at least" },
-  { lat: 30.0444, lng:  31.2357, loc: "Cairo, Egypt",        mood: "hopeful",  text: "the dawn call to prayer never stops getting me" },
-  { lat:-33.9249, lng:  18.4241, loc: "Cape Town, South Africa", mood: "calm", text: "table mountain wore its tablecloth today" },
-  { lat: 31.6295, lng:  -7.9811, loc: "Marrakech, Morocco",  mood: "curious",  text: "got lost in the medina on purpose this morning" },
-  { lat: 33.5731, lng:  -7.5898, loc: "Casablanca, Morocco", mood: "calm",     text: "café au lait by the sea, the day can begin" },
-  { lat: -1.2921, lng:  36.8219, loc: "Nairobi, Kenya",      mood: "joyful",   text: "the matatu was blasting old gospel and i sang along" },
-  { lat:  9.0320, lng:  38.7469, loc: "Addis Ababa, Ethiopia", mood: "calm",   text: "the coffee ceremony took two hours and i didn't check my phone once" },
-  { lat: -1.9441, lng:  30.0619, loc: "Kigali, Rwanda",      mood: "calm",     text: "the hills are quiet on sundays in a way you can feel" },
-  { lat:  5.6037, lng:  -0.1870, loc: "Accra, Ghana",        mood: "joyful",   text: "jollof rice party at my cousin's place tonight" },
-  { lat: 14.7167, lng: -17.4677, loc: "Dakar, Senegal",      mood: "hopeful",  text: "the sea sounds like home, even when nothing else does" },
-  { lat:-26.2041, lng:  28.0473, loc: "Johannesburg, South Africa", mood: "anxious", text: "the load shedding hit at the worst time again" },
-  { lat: 36.8065, lng:  10.1815, loc: "Tunis, Tunisia",      mood: "grateful", text: "my grandmother taught me how to make brik today" },
-
-  // Asia (28)
-  { lat: 35.6762, lng: 139.6503, loc: "Tokyo, Japan",        mood: "calm",     text: "コンビニのおにぎり、今日も完璧だった" },
-  { lat: 19.0760, lng:  72.8777, loc: "Mumbai, India",       mood: "anxious",  text: "monsoon is two weeks late this year" },
-  { lat: 21.0285, lng: 105.8542, loc: "Hanoi, Vietnam",      mood: "grateful", text: "the phở at the corner stand healed something today" },
-  { lat: 37.5665, lng: 126.9780, loc: "Seoul, South Korea",  mood: "lonely",   text: "혼자 먹는 라면이 제일 맛있다" },
-  { lat: 13.7563, lng: 100.5018, loc: "Bangkok, Thailand",   mood: "joyful",   text: "ate som tam at 3am from a street cart. perfect life" },
-  { lat:  1.3521, lng: 103.8198, loc: "Singapore",           mood: "calm",     text: "hawker centre at 11pm, eating chili crab alone, perfect" },
-  { lat: 22.3193, lng: 114.1694, loc: "Hong Kong",           mood: "anxious",  text: "this city eats sleep. i don't mind anymore" },
-  { lat: 14.5995, lng: 120.9842, loc: "Manila, Philippines", mood: "joyful",   text: "jeepney was karaoke today. truly blessed" },
-  { lat: -6.2088, lng: 106.8456, loc: "Jakarta, Indonesia",  mood: "anxious",  text: "macet parah dari pagi sampai sekarang" },
-  { lat:  3.1390, lng: 101.6869, loc: "Kuala Lumpur, Malaysia", mood: "joyful", text: "nasi lemak before sunrise hits different" },
-  { lat: 10.8231, lng: 106.6297, loc: "Ho Chi Minh City, Vietnam", mood: "curious", text: "ten thousand scooters and somehow no one crashes" },
-  { lat: 25.0330, lng: 121.5654, loc: "Taipei, Taiwan",      mood: "joyful",   text: "night market, beef noodle, repeat. the rhythm of a tuesday" },
-  { lat: 39.9042, lng: 116.4074, loc: "Beijing, China",      mood: "curious",  text: "胡同里的猫比人还多" },
-  { lat: 31.2304, lng: 121.4737, loc: "Shanghai, China",     mood: "calm",     text: "外滩的灯光，每天看也看不腻" },
-  { lat: 24.8607, lng:  67.0011, loc: "Karachi, Pakistan",   mood: "calm",     text: "chai by the sea, life is alright today" },
-  { lat: 23.8103, lng:  90.4125, loc: "Dhaka, Bangladesh",   mood: "joyful",   text: "rickshaw in the rain. the best ride in the world" },
-  { lat: 27.7172, lng:  85.3240, loc: "Kathmandu, Nepal",    mood: "grateful", text: "saw the himalayas above the smog this morning. a rare gift" },
-  { lat:  6.9271, lng:  79.8612, loc: "Colombo, Sri Lanka",  mood: "calm",     text: "the sound of kottu being chopped on metal. that's home" },
-  { lat: 41.2995, lng:  69.2401, loc: "Tashkent, Uzbekistan", mood: "grateful", text: "plov is its own love language" },
-  { lat: 43.2220, lng:  76.8512, loc: "Almaty, Kazakhstan",  mood: "curious",  text: "apples are actually from here, did you know that" },
-  { lat: 47.8864, lng: 106.9057, loc: "Ulaanbaatar, Mongolia", mood: "lonely", text: "the wind here cuts through every layer i own" },
-  { lat: 35.6892, lng:  51.3890, loc: "Tehran, Iran",        mood: "sad",      text: "the snow on damavand made me homesick before i even left" },
-  { lat: 40.1872, lng:  44.5152, loc: "Yerevan, Armenia",    mood: "sad",      text: "ararat in the haze today, like a memory you can't reach" },
-  { lat: 41.7151, lng:  44.8271, loc: "Tbilisi, Georgia",    mood: "joyful",   text: "khachapuri for dinner. and breakfast. don't tell my mom" },
-  { lat: 28.6139, lng:  77.2090, loc: "Delhi, India",        mood: "anxious",  text: "the air today, i can taste it on my tongue" },
-  { lat: 12.9716, lng:  77.5946, loc: "Bengaluru, India",    mood: "hopeful",  text: "the team finally shipped the thing. nine months for this" },
-  { lat: 34.6937, lng: 135.5023, loc: "Osaka, Japan",        mood: "joyful",   text: "takoyaki at 2am, and a stranger offered me a beer" },
-  { lat: 29.6520, lng:  91.1721, loc: "Lhasa, Tibet",        mood: "calm",     text: "the air is thin and so are my worries" },
-
-  // Europe (28)
-  { lat: 52.5200, lng:  13.4050, loc: "Berlin, Germany",     mood: "curious",  text: "der u-bahn riecht heute nach sommer" },
-  { lat: 64.1466, lng: -21.9426, loc: "Reykjavík, Iceland",  mood: "joyful",   text: "saw the northern lights from my kitchen window. still magic" },
-  { lat: 59.3293, lng:  18.0686, loc: "Stockholm, Sweden",   mood: "lonely",   text: "had fika alone today. needed it more than i knew" },
-  { lat: 60.1699, lng:  24.9384, loc: "Helsinki, Finland",   mood: "calm",     text: "long winter dark, but somehow im fine" },
-  { lat: 41.0082, lng:  28.9784, loc: "Istanbul, Turkey",    mood: "curious",  text: "iki kıta arasında kayboldum yine" },
-  { lat: 53.3498, lng:  -6.2603, loc: "Dublin, Ireland",     mood: "joyful",   text: "had three pints with a man i'd never met before. that was a friend" },
-  { lat: 48.8566, lng:   2.3522, loc: "Paris, France",       mood: "anxious",  text: "j'ai oublié mon parapluie. encore" },
-  { lat: 40.4168, lng:  -3.7038, loc: "Madrid, Spain",       mood: "joyful",   text: "siesta sagrada hoy, jueves bendito" },
-  { lat: 50.0647, lng:  19.9450, loc: "Kraków, Poland",      mood: "grateful", text: "pierogi at midnight is its own kind of meal" },
-  { lat: 50.4501, lng:  30.5234, loc: "Kyiv, Ukraine",       mood: "hopeful",  text: "ще тут. ще живі. ще любимо" },
-  { lat: 55.9533, lng:  -3.1883, loc: "Edinburgh, Scotland", mood: "curious",  text: "the wind here has personality, like an old aunt" },
-  { lat: 38.7223, lng:  -9.1393, loc: "Lisbon, Portugal",    mood: "sad",      text: "a melancolia cabe num pastel de nata" },
-  { lat: 48.2082, lng:  16.3738, loc: "Vienna, Austria",     mood: "calm",     text: "kaffeehaus and three hours and a book. perfect day" },
-  { lat: 50.0755, lng:  14.4378, loc: "Prague, Czech Republic", mood: "joyful", text: "trdelník is touristy and i don't care anymore, it's mine" },
-  { lat: 47.4979, lng:  19.0402, loc: "Budapest, Hungary",   mood: "grateful", text: "the széchenyi baths fix everything that's wrong with me" },
-  { lat: 55.6761, lng:  12.5683, loc: "Copenhagen, Denmark", mood: "calm",     text: "biked to work in the rain. hygge or not, i chose this" },
-  { lat: 59.9139, lng:  10.7522, loc: "Oslo, Norway",        mood: "calm",     text: "the fjords are showing off this week" },
-  { lat: 52.3676, lng:   4.9041, loc: "Amsterdam, Netherlands", mood: "anxious", text: "almost got hit by a bike again. that's two close calls today" },
-  { lat: 47.3769, lng:   8.5417, loc: "Zurich, Switzerland", mood: "calm",     text: "the lake was glass this morning, mountains upside down in it" },
-  { lat: 41.9028, lng:  12.4964, loc: "Rome, Italy",         mood: "grateful", text: "ho preso il caffè in piedi al bar, come si deve" },
-  { lat: 41.3851, lng:   2.1734, loc: "Barcelona, Spain",    mood: "calm",     text: "el mar siempre está ahí. eso me salva" },
-  { lat: 40.8518, lng:  14.2681, loc: "Naples, Italy",       mood: "joyful",   text: "pizza margherita e basta. niente di più necessario" },
-  { lat: 44.7866, lng:  20.4489, loc: "Belgrade, Serbia",    mood: "calm",     text: "rakija and an old song, and that was enough tonight" },
-  { lat: 55.7558, lng:  37.6173, loc: "Moscow, Russia",      mood: "curious",  text: "метро как дворец, как всегда" },
-  { lat: 59.9343, lng:  30.3351, loc: "St. Petersburg, Russia", mood: "hopeful", text: "белые ночи скоро. не могу дождаться" },
-  { lat: 51.5074, lng:  -0.1278, loc: "London, UK",          mood: "lonely",   text: "rode the bus to the end of the line and back, just to think" },
-  { lat: 53.5511, lng:   9.9937, loc: "Hamburg, Germany",    mood: "sad",      text: "der hafen heute, grau wie alles" },
-  { lat: 37.9838, lng:  23.7275, loc: "Athens, Greece",      mood: "angry",    text: "another strike, another day i can't get to work" },
-
-  // North America (18)
-  { lat: 45.5152, lng:-122.6784, loc: "Portland, OR",        mood: "calm",     text: "the rain stopped for ten minutes today and i sat outside with my coffee" },
-  { lat: 19.4326, lng: -99.1332, loc: "Mexico City, Mexico", mood: "joyful",   text: "el tianguis de los domingos es lo mejor que tiene esta ciudad" },
-  { lat: 49.2827, lng:-123.1207, loc: "Vancouver, Canada",   mood: "anxious",  text: "raining for the 47th day. i've stopped counting really" },
-  { lat: 44.9778, lng: -93.2650, loc: "Minneapolis, MN",     mood: "joyful",   text: "negative twelve outside and i'm not even mad" },
-  { lat: 30.2672, lng: -97.7431, loc: "Austin, TX",          mood: "joyful",   text: "tacos for breakfast, lunch, and dinner. zero regrets" },
-  { lat: 40.6782, lng: -73.9442, loc: "Brooklyn, NY",        mood: "grateful", text: "subway musician played radiohead and i tipped him a 20" },
-  { lat: 42.3314, lng: -83.0458, loc: "Detroit, MI",         mood: "hopeful",  text: "the city is rebuilding itself. quietly. brick by brick" },
-  { lat: 29.9511, lng: -90.0715, loc: "New Orleans, LA",     mood: "joyful",   text: "second line down royal street. how do you not dance" },
-  { lat: 61.2181, lng:-149.9003, loc: "Anchorage, AK",       mood: "curious",  text: "moose in the driveway again. she's getting bold" },
-  { lat: 21.3069, lng:-157.8583, loc: "Honolulu, HI",        mood: "calm",     text: "the ocean is my coworker" },
-  { lat: 43.6532, lng: -79.3832, loc: "Toronto, Canada",     mood: "grateful", text: "subway smells like every country at once. i love it" },
-  { lat: 45.5017, lng: -73.5673, loc: "Montreal, Canada",    mood: "joyful",   text: "j'ai mangé une poutine à 4h du matin. aucun regret" },
-  { lat: 23.1136, lng: -82.3666, loc: "Havana, Cuba",        mood: "joyful",   text: "música en cada esquina, hasta en el silencio" },
-  { lat: 37.7749, lng:-122.4194, loc: "San Francisco, CA",   mood: "anxious",  text: "fog rolled in by noon and so did the dread" },
-  { lat: 34.0522, lng:-118.2437, loc: "Los Angeles, CA",     mood: "sad",      text: "traffic gave me time to think and i should not have" },
-  { lat: 47.6062, lng:-122.3321, loc: "Seattle, WA",         mood: "calm",     text: "ferry across the sound, just to clear my head" },
-  { lat: 41.8781, lng: -87.6298, loc: "Chicago, IL",         mood: "angry",    text: "el train was 40 minutes late and now i'm late too" },
-  { lat: 46.8139, lng: -71.2080, loc: "Quebec City, Canada", mood: "calm",     text: "neige fraîche sur le vieux-port" },
-
-  // South America (12)
-  { lat:-23.5505, lng: -46.6333, loc: "São Paulo, Brazil",       mood: "sad",      text: "saudade de algo que nunca vivi" },
-  { lat:-34.6037, lng: -58.3816, loc: "Buenos Aires, Argentina", mood: "calm",     text: "tomé mate solo en la plaza, escuchando a un viejo cantar tango" },
-  { lat:-22.9068, lng: -43.1729, loc: "Rio de Janeiro, Brazil",  mood: "grateful", text: "o pôr do sol em ipanema é uma religião" },
-  { lat:-12.0464, lng: -77.0428, loc: "Lima, Peru",              mood: "grateful", text: "el ceviche es un idioma de amor" },
-  { lat:  4.7110, lng: -74.0721, loc: "Bogotá, Colombia",        mood: "anxious",  text: "la lluvia llegó como si tuviera prisa hoy" },
-  { lat:-33.4489, lng: -70.6693, loc: "Santiago, Chile",         mood: "curious",  text: "los andes hoy están ahí, mostrando quién manda" },
-  { lat: -0.1807, lng: -78.4678, loc: "Quito, Ecuador",          mood: "calm",     text: "el sol pega fuerte a 2800 metros" },
-  { lat:-13.5319, lng: -71.9675, loc: "Cusco, Peru",             mood: "hopeful",  text: "the mountains know things i don't" },
-  { lat:  6.2442, lng: -75.5812, loc: "Medellín, Colombia",      mood: "joyful",   text: "la música no para. y no debería" },
-  { lat:-16.4897, lng: -68.1193, loc: "La Paz, Bolivia",         mood: "lonely",   text: "la altitud me sigue venciendo después de diez años" },
-  { lat:-12.9714, lng: -38.5014, loc: "Salvador, Brazil",        mood: "joyful",   text: "samba na rua, sempre samba na rua" },
-  { lat: 10.4806, lng: -66.9036, loc: "Caracas, Venezuela",      mood: "sad",      text: "extraño la ciudad que ya no existe" },
-
-  // Oceania (5)
-  { lat:-33.8688, lng: 151.2093, loc: "Sydney, Australia",   mood: "joyful",   text: "swam at bondi before work and somehow forgot every email i owe" },
-  { lat:-36.8485, lng: 174.7633, loc: "Auckland, New Zealand", mood: "calm",   text: "the sheep still outnumber us. as it should be" },
-  { lat:-37.8136, lng: 144.9631, loc: "Melbourne, Australia", mood: "calm",    text: "third coffee shop today, no shame" },
-  { lat:-41.2865, lng: 174.7762, loc: "Wellington, New Zealand", mood: "angry", text: "the wind blew my umbrella inside out for the third time today" },
-  { lat:-31.9505, lng: 115.8605, loc: "Perth, Australia",    mood: "calm",     text: "indian ocean sunset, all by myself" },
-
-  // Middle East (extra to fill 100)
-  { lat: 33.8938, lng:  35.5018, loc: "Beirut, Lebanon",     mood: "hopeful",  text: "بحب هالمدينة رغم كل شي صار" },
-  { lat: 31.7683, lng:  35.2137, loc: "Jerusalem",           mood: "calm",     text: "stones older than memory, and somehow still warm" },
-  { lat: 32.0853, lng:  34.7818, loc: "Tel Aviv, Israel",    mood: "joyful",   text: "the sunset off the beach makes everything feel survivable" },
-  { lat: 25.2048, lng:  55.2708, loc: "Dubai, UAE",          mood: "anxious",  text: "another desert summer, another reason to hide indoors" },
-  { lat: 25.2854, lng:  51.5310, loc: "Doha, Qatar",         mood: "curious",  text: "the souq still surprises me after all these years" },
-
-  // a few more for tone diversity to hit 100
-  { lat: 34.5553, lng:  69.2075, loc: "Kabul, Afghanistan",  mood: "sad",      text: "i miss the streets i grew up on" },
-  { lat: 53.4808, lng:  -2.2426, loc: "Manchester, UK",      mood: "angry",    text: "the rain doesn't ask permission, it just arrives" },
-
-  // ── Cluster-test seeds (dense regional clusters, 50 total) ──
-
-  // Western Europe (15)
-  { lat: 51.5200, lng:  -0.1050, loc: "London, UK",          mood: "lonely",   text: "the tube is crowded and somehow nobody talks" },
-  { lat: 51.5150, lng:  -0.1300, loc: "London, UK",          mood: "anxious",  text: "interview in two hours, hands won't stop shaking" },
-  { lat: 51.5000, lng:  -0.1500, loc: "London, UK",          mood: "grateful", text: "my mum sent me a voice note today, made me cry" },
-  { lat: 48.8640, lng:   2.3300, loc: "Paris, France",       mood: "curious",  text: "every café in this city has its own kind of silence" },
-  { lat: 48.8730, lng:   2.3560, loc: "Paris, France",       mood: "grateful", text: "first time my french teacher said i sounded local" },
-  { lat: 48.8470, lng:   2.3760, loc: "Paris, France",       mood: "anxious",  text: "rent is due and the freelance check still hasn't come" },
-  { lat: 52.5200, lng:  13.4050, loc: "Berlin, Germany",     mood: "hopeful",  text: "started over here three months ago and it's working" },
-  { lat: 52.5100, lng:  13.4200, loc: "Berlin, Germany",     mood: "sad",      text: "missing my old apartment in munich tonight" },
-  { lat: 52.4990, lng:  13.4350, loc: "Berlin, Germany",     mood: "joyful",   text: "berghain rejected me and i've never laughed harder" },
-  { lat: 52.3700, lng:   4.8920, loc: "Amsterdam, Netherlands", mood: "calm",  text: "biking along the canals at 7am, nobody else awake" },
-  { lat: 52.3600, lng:   4.9100, loc: "Amsterdam, Netherlands", mood: "curious", text: "everyone here greets their bike like an old friend" },
-  { lat: 40.4200, lng:  -3.7050, loc: "Madrid, Spain",       mood: "angry",    text: "el ruido del aire del vecino me está volviendo loco" },
-  { lat: 40.4120, lng:  -3.7100, loc: "Madrid, Spain",       mood: "joyful",   text: "tapas with strangers turned into 4am conversations" },
-
-  // Southeast Asia (10)
-  { lat: 13.7470, lng: 100.4900, loc: "Bangkok, Thailand",   mood: "calm",     text: "the temple was empty this morning, just me and the bells" },
-  { lat: 13.7640, lng: 100.5200, loc: "Bangkok, Thailand",   mood: "curious",  text: "talked to a monk who's been silent for six years" },
-  { lat:  1.3520, lng: 103.8200, loc: "Singapore",           mood: "anxious",  text: "everyone moves so fast here, can't keep up" },
-  { lat:  1.3450, lng: 103.8100, loc: "Singapore",           mood: "hopeful",  text: "got the offer letter today. moving to tanjong pagar" },
-  { lat: -6.2080, lng: 106.8460, loc: "Jakarta, Indonesia",  mood: "sad",      text: "stuck in traffic for two hours again" },
-  { lat: -6.2150, lng: 106.8350, loc: "Jakarta, Indonesia",  mood: "grateful", text: "my grandma made rendang for the whole family today" },
-  { lat: 14.6000, lng: 120.9840, loc: "Manila, Philippines", mood: "curious",  text: "a kid asked me what dreams are. i didn't have a good answer" },
-  { lat: 14.5900, lng: 120.9920, loc: "Manila, Philippines", mood: "lonely",   text: "rainy season hits different when you live alone" },
-
-  // US East Coast (10)
-  { lat: 40.7130, lng: -74.0060, loc: "New York, NY",        mood: "anxious",  text: "subway delays again. third time this week" },
-  { lat: 40.7300, lng: -73.9980, loc: "New York, NY",        mood: "lonely",   text: "8 million people and nobody texts back" },
-  { lat: 40.7450, lng: -73.9900, loc: "New York, NY",        mood: "grateful", text: "stranger paid for my coffee this morning" },
-  { lat: 40.7140, lng: -74.0020, loc: "New York, NY",        mood: "joyful",   text: "got married at city hall today. just us and the witness" },
-  { lat: 42.3600, lng: -71.0580, loc: "Boston, MA",          mood: "hopeful",  text: "first day of my phd. terrified but excited" },
-  { lat: 42.3500, lng: -71.0720, loc: "Boston, MA",          mood: "sad",      text: "the only friend i made here is moving back to california" },
-  { lat: 38.9070, lng: -77.0360, loc: "Washington, DC",      mood: "angry",    text: "another protest blocked the way home. sympathetic but tired" },
-  { lat: 38.8860, lng: -77.0380, loc: "Washington, DC",      mood: "calm",     text: "the cherry blossoms are starting in tidal basin" },
-
-  // India (10)
-  { lat: 19.0850, lng:  72.8600, loc: "Mumbai, India",       mood: "anxious",  text: "parents found out about the relationship today" },
-  { lat: 19.0700, lng:  72.8900, loc: "Mumbai, India",       mood: "lonely",   text: "arranged marriage talks have started. i'm not ready" },
-  { lat: 28.6140, lng:  77.2090, loc: "Delhi, India",        mood: "curious",  text: "the chai wala remembered my order after one visit" },
-  { lat: 28.6250, lng:  77.2200, loc: "Delhi, India",        mood: "angry",    text: "AQI is 380 and i have a marathon in two days" },
-  { lat: 28.6050, lng:  77.1980, loc: "Delhi, India",        mood: "hopeful",  text: "got into IIT today. mom cried" },
-  { lat: 28.6200, lng:  77.2300, loc: "Delhi, India",        mood: "joyful",   text: "auntie made aloo paratha exactly like nani used to" },
-  { lat: 12.9650, lng:  77.6040, loc: "Bengaluru, India",    mood: "sad",      text: "my grandfather passed away last night. flying home tomorrow" },
-  { lat: 12.9800, lng:  77.5850, loc: "Bengaluru, India",    mood: "grateful", text: "my team brought a cake for my work anniversary" },
-
-  // Japan (5)
-  { lat: 35.6800, lng: 139.7600, loc: "Tokyo, Japan",        mood: "lonely",   text: "salaryman mode for the third year. when does it end" },
-  { lat: 35.6900, lng: 139.7000, loc: "Tokyo, Japan",        mood: "hopeful",  text: "passed JLPT N2 today. finally" },
-  { lat: 34.6850, lng: 135.4950, loc: "Osaka, Japan",        mood: "curious",  text: "the obachan at the station gives me ginger candy every day" }
-];
+const SEED = [];
 
 // Pad if needed (kept simple — current total is 100)
 
@@ -1553,7 +1380,7 @@ function clearPreview() {
 
 function openCompose(latlng) {
   if (hasDroppedToday()) {
-    flashHint("you've already dropped one today — come back tomorrow");
+    flashHint("you've already left your mark today");
     return;
   }
   pendingLatLng = latlng;
@@ -1835,7 +1662,7 @@ geoMsg.addEventListener("click", (e) => {
 
 function requestDrop() {
   if (hasDroppedToday()) {
-    flashHint("you've already dropped one today — come back tomorrow");
+    flashHint("you've already left your mark today");
     return;
   }
   if (!navigator.geolocation) {
@@ -1887,7 +1714,7 @@ function hideHint() {
   if (hint && !hint.classList.contains("gone")) hint.classList.add("gone");
 }
 if (hasDroppedToday()) {
-  hint.textContent = "you've left your mark today. come back tomorrow.";
+  hint.textContent = "you've left your mark today";
   hint.classList.remove("gone");
   setTimeout(() => hint.classList.add("gone"), 6000);
 }
