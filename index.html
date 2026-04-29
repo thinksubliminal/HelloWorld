@@ -516,19 +516,21 @@
   }
   #geoMsg.open { display: flex; }
   .geo-card {
-    background: #fff;
-    border: 1px solid #ececec;
-    border-radius: 6px;
-    padding: 22px 24px 18px;
-    max-width: 340px;
+    background: rgba(255, 255, 255, 0.07);
+    -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+    border: 0.5px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 26px 28px 22px;
+    width: min(360px, 92vw);
     text-align: center;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
   }
   .geo-text {
     font-size: 13px;
-    color: #555;
+    color: rgba(255, 255, 255, 0.85);
     line-height: 1.55;
-    margin-bottom: 16px;
+    margin-bottom: 18px;
   }
 
   #zoomLabel {
