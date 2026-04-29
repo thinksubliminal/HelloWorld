@@ -1676,25 +1676,59 @@ const translatedSync = new Map();
 function getTranslatedNow(text, targetLang) {
   return translatedSync.get(`${targetLang}::${text}`) || null;
 }
+// Lingva instances to try in order. lingva.ml is the official one; the others
+// are community-hosted mirrors running the same software with identical APIs.
+// If the primary is slow/down, we try the next one. Per-attempt timeout: 2s.
+// Order is by reputation/stability; reorder if we see better results from a
+// different mirror over time.
+const LINGVA_HOSTS = [
+  "https://lingva.ml",
+  "https://translate.plausibility.cloud",
+  "https://lingva.lunar.icu",
+  "https://lingva.garudalinux.org"
+];
+const LINGVA_TIMEOUT_MS = 2000;
+
+async function fetchLingva(host, targetLang, text) {
+  const url = host + "/api/v1/auto/"
+    + encodeURIComponent(targetLang) + "/"
+    + encodeURIComponent(text);
+  // AbortController gives us a real timeout — fetch() alone has no built-in one,
+  // so a hung server would just make us wait forever otherwise.
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), LINGVA_TIMEOUT_MS);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal });
+    if (!r.ok) throw new Error("translate fetch failed: " + r.status);
+    const data = await r.json();
+    const t = data && data.translation;
+    return (typeof t === "string" && t.trim()) ? t : null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function translate(text, targetLang) {
   const key = `${targetLang}::${text}`;
   if (translationCache.has(key)) return translationCache.get(key);
   const p = (async () => {
-    try {
-      const url = "https://lingva.ml/api/v1/auto/"
-        + encodeURIComponent(targetLang) + "/"
-        + encodeURIComponent(text);
-      const r = await fetch(url);
-      if (!r.ok) throw new Error("translate fetch failed");
-      const data = await r.json();
-      const t = data && data.translation;
-      const result = (typeof t === "string" && t.trim()) ? t : null;
-      if (result) translatedSync.set(key, result);
-      return result;
-    } catch (e) {
-      translationCache.delete(key);
-      return null;
+    // Try each host in order. First success wins. If all fail, return null
+    // and the caller falls back to displaying the original text.
+    for (const host of LINGVA_HOSTS) {
+      try {
+        const result = await fetchLingva(host, targetLang, text);
+        if (result) {
+          translatedSync.set(key, result);
+          return result;
+        }
+      } catch (e) {
+        // Aborted (timeout) or network error — try the next mirror silently.
+        // Logging for diagnostics during development; safe to remove later.
+        console.warn(`[translate] ${host} failed:`, e.name || e.message);
+      }
     }
+    translationCache.delete(key);
+    return null;
   })();
   translationCache.set(key, p);
   return p;
