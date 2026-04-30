@@ -1035,29 +1035,6 @@ const CITIES = [
   { name: "Port Moresby, PNG", lat: -9.4438, lng: 147.1803 }
 ];
 
-// ───────────── SEED MESSAGES (placeholders for an empty map) ─────────────
-// Client-only — these are not in the database and never will be. Their job is
-// to keep the map from feeling lonely on day one. Spread across continents
-// and across the 9 mood colors. Remove this entire array when real activity
-// is reliably present.
-const SEED = [
-  { lat:  40.7128, lng:  -74.0060, loc: "New York, NY",         mood: "hopeful",  text: "the city is loud but i finally heard myself today" },
-  { lat:  37.7749, lng: -122.4194, loc: "San Francisco, CA",    mood: "curious",  text: "fog rolled in over the bridge while i was on a call" },
-  { lat:  19.4326, lng:  -99.1332, loc: "Mexico City, Mexico",  mood: "joyful",   text: "tacos al pastor at midnight, life is good" },
-  { lat: -22.9068, lng:  -43.1729, loc: "Rio de Janeiro, Brazil", mood: "grateful", text: "the ocean was warm and i didn't think about anything" },
-  { lat:  51.5074, lng:   -0.1278, loc: "London, UK",           mood: "calm",     text: "rain on the window, tea getting cold, perfect" },
-  { lat:  48.8566, lng:    2.3522, loc: "Paris, France",        mood: "lonely",   text: "the bakery lady remembered my order today" },
-  { lat:  41.9028, lng:   12.4964, loc: "Rome, Italy",          mood: "joyful",   text: "stranger gave me directions for ten minutes in italian. i understood maybe three words" },
-  { lat:  59.3293, lng:   18.0686, loc: "Stockholm, Sweden",    mood: "calm",     text: "the light is finally coming back" },
-  { lat:  30.0444, lng:   31.2357, loc: "Cairo, Egypt",         mood: "hopeful",  text: "the call to prayer at dawn never stops getting me" },
-  { lat:  -1.2921, lng:   36.8219, loc: "Nairobi, Kenya",       mood: "joyful",   text: "the matatu was blasting old gospel and i sang along" },
-  { lat: -33.9249, lng:   18.4241, loc: "Cape Town, South Africa", mood: "grateful", text: "table mountain wore its tablecloth today" },
-  { lat:  35.6762, lng:  139.6503, loc: "Tokyo, Japan",         mood: "calm",     text: "コンビニのおにぎり、今日も完璧だった" },
-  { lat:  19.0760, lng:   72.8777, loc: "Mumbai, India",        mood: "anxious",  text: "monsoon is two weeks late this year" },
-  { lat:  -6.2088, lng:  106.8456, loc: "Jakarta, Indonesia",   mood: "sad",      text: "missing someone today and that's okay" },
-  { lat: -33.8688, lng:  151.2093, loc: "Sydney, Australia",    mood: "angry",    text: "the bus driver shut the door in my face. tomorrow's a new day" }
-];
-
 // ───────────── COLOR UTILS ─────────────
 function hexToRgb(hex) {
   const h = hex.replace("#", "");
@@ -1237,17 +1214,12 @@ map.scrollWheelZoom.disable();
 })();
 
 // ───────────── STATE ─────────────
-let messages = []; // combined seed + user
+let messages = [];
 const dotMarkers = new Map();
 const dotLayer = L.layerGroup();
 
 function buildMessages() {
-  const seedMsgs = SEED.map(s => ({
-    id: "seed-" + s.lat.toFixed(3) + "-" + s.lng.toFixed(3) + "-" + s.mood,
-    lat: s.lat, lng: s.lng, loc: s.loc, mood: s.mood, text: s.text, mine: false
-  }));
-  const userMsgs = loadUserMessages();
-  messages = [...seedMsgs, ...userMsgs];
+  messages = loadUserMessages();
 }
 
 // ───────────── RENDERING ─────────────
@@ -2009,7 +1981,7 @@ window.resetMyDot = function () {
   }
 
   // Warm the translation cache for the user's chosen language now that all
-  // initial messages (seed + Supabase) are loaded.
+  // initial messages are loaded.
   pretranslateAll(getCurrentLang());
 
   // ── Realtime: subscribe to new inserts ──
