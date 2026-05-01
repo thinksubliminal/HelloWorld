@@ -604,17 +604,41 @@
   .lang-opt:hover { background: rgba(255, 255, 255, 0.04); color: #d8d8d8; }
   .lang-opt.active { color: #fff; background: rgba(255, 255, 255, 0.05); }
 
-  /* Wrapper holds both the + (drop a dot) and △ (shoot a flare) buttons so
-     they share a single bottom anchor and align by their centers. */
-  #bottomActions {
+  /* Bottom zone — single fixed-position container for the entire bottom UI.
+     Stacks vertically: text slot on top, button row below, with a fixed gap
+     between them. The text slot itself is a relative-positioned 1-row "deck"
+     that #dropPrompt and #hint share via absolute positioning, so only one
+     ever shows but the layout never collapses. */
+  #bottomZone {
     position: fixed;
     bottom: 50px;
     left: 50%;
     transform: translateX(-50%);
     z-index: 600;
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    pointer-events: none;
+  }
+  .bottom-text-slot {
+    position: relative;
+    height: 26px;
+    width: 240px;
+    pointer-events: none;
+  }
+  /* Two-ID specificity (inside #bottomZone) so this wins over the base
+     position: fixed declarations below without needing !important. */
+  #bottomZone #dropPrompt,
+  #bottomZone #hint {
+    position: absolute;
+    bottom: 0;
+  }
+  #bottomActions {
+    display: flex;
     align-items: center;
     gap: 14px;
+    pointer-events: auto;
   }
   #dropBtn {
     width: 58px; height: 58px;
@@ -1365,19 +1389,10 @@
     #hwToggle { display: block; }
     .leaflet-control-zoom { display: none !important; }
 
-    /* Mobile drop zone — + button anchored to the very bottom (clear of the
-       safe-area inset for notched devices and browser chrome), and every hint
-       message ("say something to the world", "you've already left your mark
-       today", flashed feedback, etc.) shares a single spot directly above it.
-       58px = #dropBtn height; the 14s are matching gaps above and below. */
-    #bottomActions {
+    /* Mobile drop zone — anchor the entire wrapper just above the safe-area
+       inset; the column-flex inside takes care of stacking text above buttons. */
+    #bottomZone {
       bottom: calc(env(safe-area-inset-bottom, 0px) + 14px) !important;
-      top: auto !important;
-    }
-    #dropPrompt,
-    #hint {
-      bottom: calc(env(safe-area-inset-bottom, 0px) + 86px) !important;
-      top: auto !important;
     }
   }
 </style>
@@ -1400,18 +1415,22 @@
 <div id="langPanel" role="menu" aria-labelledby="langBtn"></div>
 
 <div id="map"></div>
-<div id="hint" class="gone"></div>
 <div id="flareAimLabel" aria-hidden="true"></div>
 
-<div id="bottomActions">
-  <button id="dropBtn" type="button" aria-label="leave a message"><span class="drop-dot" aria-hidden="true"></span></button>
-  <button id="flareBtn" class="locked" type="button" aria-label="shoot a flare">
-    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <polygon points="12,1 13.5,10.5 23,12 13.5,13.5 12,23 10.5,13.5 1,12 10.5,10.5" fill="currentColor"/>
-    </svg>
-  </button>
+<div id="bottomZone">
+  <div class="bottom-text-slot">
+    <div id="dropPrompt" aria-hidden="true">say something to the world</div>
+    <div id="hint" class="gone"></div>
+  </div>
+  <div id="bottomActions">
+    <button id="dropBtn" type="button" aria-label="leave a message"><span class="drop-dot" aria-hidden="true"></span></button>
+    <button id="flareBtn" class="locked" type="button" aria-label="shoot a flare">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <polygon points="12,1 13.5,10.5 23,12 13.5,13.5 12,23 10.5,13.5 1,12 10.5,10.5" fill="currentColor"/>
+      </svg>
+    </button>
+  </div>
 </div>
-<div id="dropPrompt" aria-hidden="true">say something to the world</div>
 
 <div id="hwPanel" class="empty" aria-label="heard around the world">
   <div class="hw-title">
@@ -2941,14 +2960,34 @@ document.addEventListener("keydown", (e) => {
 
 // ───────────── HINT ─────────────
 let hintTimer = null;
+let dropPromptHidByHint = false;
 function flashHint(text) {
   hint.textContent = text;
   hint.classList.remove("gone");
+  // The drop prompt sits at the same `bottom` as the hint pill (they share
+  // the unified bottom-zone), so they overlap. Tuck the prompt while the
+  // hint is up; restore it after if the user still hasn't dropped.
+  const prompt = document.getElementById("dropPrompt");
+  if (prompt && !prompt.classList.contains("gone")) {
+    prompt.classList.add("gone");
+    dropPromptHidByHint = true;
+  }
   clearTimeout(hintTimer);
-  hintTimer = setTimeout(() => hint.classList.add("gone"), 4000);
+  hintTimer = setTimeout(() => {
+    hint.classList.add("gone");
+    if (dropPromptHidByHint) {
+      dropPromptHidByHint = false;
+      if (prompt && !hasDroppedToday()) prompt.classList.remove("gone");
+    }
+  }, 3000);
 }
 function hideHint() {
   if (hint && !hint.classList.contains("gone")) hint.classList.add("gone");
+  if (dropPromptHidByHint) {
+    dropPromptHidByHint = false;
+    const prompt = document.getElementById("dropPrompt");
+    if (prompt && !hasDroppedToday()) prompt.classList.remove("gone");
+  }
 }
 
 // Drop prompt sits above the + button. It's a one-way fade: visible until the
