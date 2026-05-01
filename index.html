@@ -136,7 +136,26 @@
   }
 
   /* Dots */
-  .dot-wrap { background: transparent !important; border: none !important; }
+  /* The wrapper is 8px larger on every side than the visible dot so the
+     tap target is generous on mobile. The visible dot stays 11×11; only the
+     invisible bounding box grows. Flexbox centers the dot in the wrapper. */
+  .dot-wrap {
+    background: transparent !important;
+    border: none !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .dot-wrap:hover .dot { transform: scale(1.45); }
+
+  /* Desktop: revert to a precise hit area equal to the visible dot/flare.
+     The wrappers are still oversized for mobile, but on desktop only the
+     visible inner element receives pointer events so misclicks between
+     nearby markers can't happen. */
+  @media (min-width: 640px) {
+    .dot-wrap, .flare-wrap { pointer-events: none; }
+    .dot-wrap > .dot, .flare-wrap > .flare { pointer-events: auto; }
+  }
   .dot {
     width: 11px; height: 11px;
     border-radius: 50%;
@@ -735,6 +754,10 @@
      and a floating amber-tinted label tracks the cursor (desktop) or finger
      (mobile, while pressed) showing the city under the aim. */
   body.flare-placing .leaflet-container { cursor: crosshair; }
+  /* While the user is actively pressing/dragging to aim, swap to a grabbing
+     cursor — feels like physically holding the flare before releasing. The
+     class is added on mousedown/touchstart and removed on mouseup/touchend. */
+  body.flare-placing.flare-aiming-active .leaflet-container { cursor: grabbing; }
   body.flare-placing .leaflet-marker-icon,
   body.flare-placing .leaflet-popup,
   body.flare-placing .leaflet-tooltip {
@@ -761,10 +784,19 @@
   #flareAimLabel.show { display: block; }
 
   /* Flare markers — distinct upward triangle shape, white-amber palette. */
-  .flare-wrap { background: transparent !important; border: none !important; }
+  /* Same hit-area trick as .dot-wrap: oversized invisible wrapper, visible
+     glint star centered inside. */
+  .flare-wrap {
+    background: transparent !important;
+    border: none !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .flare-wrap:hover .flare { transform: scale(1.18); }
   .flare {
-    width: 23px;
-    height: 23px;
+    width: 21px;
+    height: 21px;
     cursor: pointer;
     transition: transform 0.18s ease;
   }
@@ -2000,8 +2032,9 @@ function continentFromLatLng(lat, lng) {
   if (lat >= 12 && lat <= 42 && w >= 33 && w <= 65) return "Asia";
   // Africa (Egypt etc. inside this; ME already filtered out above)
   if (lat >= -35 && lat <= 37 && w >= -27 && w <= 52) return "Africa";
-  // Everything else: Asia
-  return "Asia";
+  // Anything that didn't match a continent box is over open ocean — used by
+  // flare placement to refuse ocean-tap aiming.
+  return null;
 }
 
 // ───────────── MAP ─────────────
@@ -2130,8 +2163,12 @@ function addDotMarker(msg) {
   const icon = L.divIcon({
     className: "dot-wrap",
     html: dotIconHtml(msg.mood, msg.mine),
-    iconSize: [11, 11],
-    iconAnchor: [5.5, 5.5]
+    // Wrapper is 8px wider/taller than the visible dot on every side, so the
+    // tap target is 27×27. Visual size unchanged. Desktop turns this padding
+    // into pointer-events: none via CSS, so only the visible dot is clickable
+    // there — see .dot-wrap rules.
+    iconSize: [27, 27],
+    iconAnchor: [13.5, 13.5]
   });
   const m = L.marker([msg.lat, msg.lng], { icon, riseOnHover: true, keyboard: false });
   m.bindPopup(() => buildPopup(msg), {
@@ -2275,6 +2312,7 @@ function renderHeardPanel() {
   for (const msg of messages) {
     if (!msg.text) continue;
     const c = msg.continent || continentFromLatLng(msg.lat, msg.lng);
+    if (!c) continue; // ocean — skip
     const top = byContinent.get(c);
     if (!top || (msg.view_count || 0) > (top.view_count || 0)) {
       byContinent.set(c, msg);
@@ -3248,8 +3286,8 @@ function addFlareMarker(flare) {
   const icon = L.divIcon({
     className: "flare-wrap",
     html: flareIconHtml(flare),
-    iconSize: [23, 23],
-    iconAnchor: [11.5, 11.5]
+    iconSize: [37, 37],
+    iconAnchor: [18.5, 18.5]
   });
   const m = L.marker([flare.lat, flare.lng], { icon, riseOnHover: true, keyboard: false });
   m.bindPopup(() => buildFlarePopup(flare), {
@@ -3290,8 +3328,8 @@ function refreshFlareMarkerStyle(flare) {
   const newIcon = L.divIcon({
     className: "flare-wrap",
     html: flareIconHtml(flare),
-    iconSize: [23, 23],
-    iconAnchor: [11.5, 11.5]
+    iconSize: [37, 37],
+    iconAnchor: [18.5, 18.5]
   });
   m.setIcon(newIcon);
   // If the popup is currently open, refresh its content too so a viewer sees
@@ -3601,9 +3639,10 @@ function exitFlarePlacementMode() {
   flarePlacementMode = false;
   touchAiming = false;
   lastAimLatLng = null;
-  // If the user cancels (vs. completes) placement, drop the captured GPS so
-  // the next flare attempt gets a fresh sample.
-  if (!flareCompose.classList.contains("open")) planterLatLng = null;
+  // NOTE: don't clear planterLatLng here — on the success path this fires
+  // BEFORE openFlareCompose, so submitFlare needs the captured value to be
+  // intact. Each new requestFlare() recaptures via geolocation, so stale
+  // values never persist across attempts.
   document.body.classList.remove("flare-placing");
   flareBtn.classList.remove("active");
   hideHint();
@@ -3657,10 +3696,23 @@ if (IS_HOVER_DEVICE) {
   map.on("mouseout", () => {
     if (flarePlacementMode) hideAimLabel();
   });
+  // mousedown/up toggle the "actively aiming" cursor state — grabbing while
+  // pressed, crosshair when not.
+  map.on("mousedown", () => {
+    if (flarePlacementMode) document.body.classList.add("flare-aiming-active");
+  });
+  map.on("mouseup", () => {
+    document.body.classList.remove("flare-aiming-active");
+  });
   map.on("click", (e) => {
     if (!flarePlacementMode) return;
     const ll = e.latlng;
     const continent = continentFromLatLng(ll.lat, ll.lng);
+    if (!continent) {
+      // Ocean tap — block, keep placement mode active so user can retry.
+      flashHint("aim at a continent");
+      return;
+    }
     exitFlarePlacementMode();
     openFlareCompose(ll, continent);
   });
@@ -3686,6 +3738,7 @@ if (!IS_HOVER_DEVICE) {
     if (e.touches.length !== 1) return;
     e.preventDefault();
     touchAiming = true;
+    document.body.classList.add("flare-aiming-active");
     const { point, clientX, clientY } = pointFromTouch(e.touches[0]);
     const latlng = map.containerPointToLatLng(point);
     lastAimLatLng = latlng;
@@ -3704,9 +3757,17 @@ if (!IS_HOVER_DEVICE) {
   mapEl.addEventListener("touchend", () => {
     if (!flarePlacementMode || !touchAiming) return;
     touchAiming = false;
+    document.body.classList.remove("flare-aiming-active");
     const ll = lastAimLatLng;
     if (!ll) { hideAimLabel(); return; }
     const continent = continentFromLatLng(ll.lat, ll.lng);
+    if (!continent) {
+      // Ocean release — block, stay in placement mode so user can retry.
+      hideAimLabel();
+      lastAimLatLng = null;
+      flashHint("aim at a continent");
+      return;
+    }
     exitFlarePlacementMode();
     openFlareCompose(ll, continent);
   });
@@ -3714,6 +3775,7 @@ if (!IS_HOVER_DEVICE) {
   mapEl.addEventListener("touchcancel", () => {
     if (!flarePlacementMode) return;
     touchAiming = false;
+    document.body.classList.remove("flare-aiming-active");
     hideAimLabel();
   });
 }
