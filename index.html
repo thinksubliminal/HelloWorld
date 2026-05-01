@@ -44,6 +44,10 @@
   }
   #topNav .nav-left { display: flex; align-items: center; }
   #topNav .nav-right { display: flex; align-items: center; gap: 14px; }
+  /* Each icon button has 4px internal padding around its icon, so the visual
+     icon↔icon gap is gap + 4 + 4. Add a matching 4px right margin to the
+     reset timer so the visual letter↔icon gap equals icon↔icon. */
+  #topNav .nav-right #resetTimer { margin-right: 4px; }
 
   .leaflet-container { background: #0a1929 !important; font-family: inherit; outline: none; }
 
@@ -84,11 +88,12 @@
     background: rgba(13, 24, 38, 0.85) !important;
     color: #999 !important;
     border: 1px solid #2f4153 !important;
-    font-weight: 200 !important;
+    /* Hide the default +/− text glyphs — we paint them as SVG masks below
+       so they're guaranteed pixel-centered regardless of font metrics. */
+    font-size: 0 !important;
     display: flex !important;
-    align-items: center;
-    justify-content: center;
-    line-height: 1 !important;
+    align-items: center !important;
+    justify-content: center !important;
     padding: 0 !important;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
@@ -96,6 +101,27 @@
     background: rgba(20, 35, 55, 0.95) !important;
     color: #d8d8d8 !important;
     border-color: #3d5168 !important;
+  }
+  .leaflet-control-zoom a::before {
+    content: '';
+    display: block;
+    width: 12px;
+    height: 12px;
+    background-color: currentColor;
+    -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+            mask-position: center;
+    -webkit-mask-size: 12px 12px;
+            mask-size: 12px 12px;
+  }
+  .leaflet-control-zoom-in::before {
+    -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='11' y='4' width='2' height='16' rx='1'/><rect x='4' y='11' width='16' height='2' rx='1'/></svg>");
+            mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='11' y='4' width='2' height='16' rx='1'/><rect x='4' y='11' width='16' height='2' rx='1'/></svg>");
+  }
+  .leaflet-control-zoom-out::before {
+    -webkit-mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='4' y='11' width='16' height='2' rx='1'/></svg>");
+            mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='4' y='11' width='16' height='2' rx='1'/></svg>");
   }
   .leaflet-control-zoom-in {
     border-radius: 4px 4px 0 0 !important;
@@ -368,7 +394,6 @@
     background: rgba(13, 24, 38, 0.55);
     -webkit-backdrop-filter: blur(12px);
             backdrop-filter: blur(12px);
-    border: 1px solid #2f4153;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
     padding: 6px 14px;
     border-radius: 100px;
@@ -416,7 +441,8 @@
     animation: moodCycle 24s linear infinite;
   }
 
-  #langBtn {
+  #langBtn,
+  #helpBtn {
     background: transparent;
     border: none;
     padding: 4px;
@@ -428,8 +454,123 @@
     border-radius: 4px;
     transition: color 0.15s;
   }
-  #langBtn:hover { color: rgba(255, 255, 255, 0.7); }
-  #langBtn svg { width: 18px; height: 18px; display: block; }
+  #langBtn:hover,
+  #helpBtn:hover { color: rgba(255, 255, 255, 0.7); }
+  /* Nav icons load from assets/ via mask-image so they inherit currentColor
+     for hover states (the bare SVG files have black fills baked in). */
+  .nav-icon {
+    width: 18px;
+    height: 18px;
+    display: block;
+    background-color: currentColor;
+    -webkit-mask-repeat: no-repeat;
+            mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+            mask-position: center;
+    -webkit-mask-size: contain;
+            mask-size: contain;
+  }
+  /* Source files live at assets/translate.svg and assets/information.svg.
+     They're embedded inline as base64 here so mask-image renders reliably
+     even when the page is opened directly via file:// (some browsers will
+     silently fail to apply a mask layer pulled from a relative file URL). */
+  .nav-icon-translate {
+    -webkit-mask-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIxLjQxIDguNjQwMTNDMjEuNDEgOC42NDAxMyAyMS40MSA4LjY0MDEzIDIxLjQxIDguNTkwMTNDMjAuNzA1MyA2LjY2NjM1IDE5LjQyNjkgNS4wMDU0MSAxNy43NDc0IDMuODMxOTlDMTYuMDY4IDIuNjU4NTcgMTQuMDY4NyAyLjAyOTMgMTIuMDIgMi4wMjkzQzkuOTcxMiAyLjAyOTMgNy45NzE4OSAyLjY1ODU3IDYuMjkyNDYgMy44MzE5OUM0LjYxMzA0IDUuMDA1NDEgMy4zMzQ1NSA2LjY2NjM1IDIuNjI5OTUgOC41OTAxM0MyLjYyOTk1IDguNTkwMTMgMi42Mjk5NSA4LjU5MDEzIDIuNjI5OTUgOC42NDAxM0MxLjg0MzA4IDEwLjgxMSAxLjg0MzA4IDEzLjE4OTIgMi42Mjk5NSAxNS4zNjAxQzIuNjI5OTUgMTUuMzYwMSAyLjYyOTk1IDE1LjM2MDEgMi42Mjk5NSAxNS40MTAxQzMuMzM0NTUgMTcuMzMzOSA0LjYxMzA0IDE4Ljk5NDggNi4yOTI0NiAyMC4xNjgzQzcuOTcxODkgMjEuMzQxNyA5Ljk3MTIgMjEuOTcxIDEyLjAyIDIxLjk3MUMxNC4wNjg3IDIxLjk3MSAxNi4wNjggMjEuMzQxNyAxNy43NDc0IDIwLjE2ODNDMTkuNDI2OSAxOC45OTQ4IDIwLjcwNTMgMTcuMzMzOSAyMS40MSAxNS40MTAxQzIxLjQxIDE1LjQxMDEgMjEuNDEgMTUuNDEwMSAyMS40MSAxNS4zNjAxQzIyLjE5NjggMTMuMTg5MiAyMi4xOTY4IDEwLjgxMSAyMS40MSA4LjY0MDEzWk00LjI1OTk1IDE0LjAwMDFDMy45MTMxOCAxMi42ODkzIDMuOTEzMTggMTEuMzEwOSA0LjI1OTk1IDEwLjAwMDFINi4xMTk5NUM1Ljk1OTk4IDExLjMyODcgNS45NTk5OCAxMi42NzE2IDYuMTE5OTUgMTQuMDAwMUg0LjI1OTk1Wk01LjA3OTk1IDE2LjAwMDFINi40Nzk5NUM2LjcxNDY3IDE2Ljg5MiA3LjA1MDE2IDE3Ljc1NDIgNy40Nzk5NSAxOC41NzAxQzYuNDk5MjUgMTcuOTAyMSA1LjY3OTQ1IDE3LjAyNDIgNS4wNzk5NSAxNi4wMDAxWk02LjQ3OTk1IDguMDAwMTNINS4wNzk5NUM1LjY3MDgyIDYuOTc5MjEgNi40ODAxNCA2LjEwMTU5IDcuNDQ5OTUgNS40MzAxM0M3LjAzMDUxIDYuMjQ3MzcgNi43MDUwOSA3LjEwOTU0IDYuNDc5OTUgOC4wMDAxM1pNMTEgMTkuNzAwMUM5Ljc3MTcyIDE4Ljc5ODggOC45MDkxIDE3LjQ4NTQgOC41Njk5NSAxNi4wMDAxSDExVjE5LjcwMDFaTTExIDE0LjAwMDFIOC4xMzk5NUM3Ljk1MzM0IDEyLjY3MzMgNy45NTMzNCAxMS4zMjY5IDguMTM5OTUgMTAuMDAwMUgxMVYxNC4wMDAxWk0xMSA4LjAwMDEzSDguNTY5OTVDOC45MDkxIDYuNTE0ODkgOS43NzE3MiA1LjIwMTQ0IDExIDQuMzAwMTNWOC4wMDAxM1pNMTguOTIgOC4wMDAxM0gxNy41MkMxNy4yODUyIDcuMTA4MjggMTYuOTQ5NyA2LjI0NjA2IDE2LjUyIDUuNDMwMTNDMTcuNTAwNyA2LjA5ODIgMTguMzIwNSA2Ljk3NjA3IDE4LjkyIDguMDAwMTNaTTEzIDQuMzAwMTNDMTQuMjI4MiA1LjIwMTQ0IDE1LjA5MDggNi41MTQ4OSAxNS40MyA4LjAwMDEzSDEzVjQuMzAwMTNaTTEzIDE5LjcwMDFWMTYuMDAwMUgxNS40M0MxNS4wOTA4IDE3LjQ4NTQgMTQuMjI4MiAxOC43OTg4IDEzIDE5LjcwMDFaTTE1Ljg2IDE0LjAwMDFIMTNWMTAuMDAwMUgxNS44NkMxNi4wNDY2IDExLjMyNjkgMTYuMDQ2NiAxMi42NzMzIDE1Ljg2IDE0LjAwMDFaTTE2LjU1IDE4LjU3MDFDMTYuOTc5NyAxNy43NTQyIDE3LjMxNTIgMTYuODkyIDE3LjU1IDE2LjAwMDFIMTguOTVDMTguMzUwNSAxNy4wMjQyIDE3LjUzMDcgMTcuOTAyMSAxNi41NSAxOC41NzAxWk0xOS43NCAxNC4wMDAxSDE3Ljg4QzE3Ljk2MTMgMTMuMzM2NiAxOC4wMDE0IDEyLjY2ODYgMTggMTIuMDAwMUMxOC4wMDExIDExLjMzMTYgMTcuOTYxIDEwLjY2MzcgMTcuODggMTAuMDAwMUgxOS43NEMyMC4wODY3IDExLjMxMDkgMjAuMDg2NyAxMi42ODkzIDE5Ljc0IDE0LjAwMDFaIiBmaWxsPSJibGFjayIvPgo8L3N2Zz4K");
+            mask-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIxLjQxIDguNjQwMTNDMjEuNDEgOC42NDAxMyAyMS40MSA4LjY0MDEzIDIxLjQxIDguNTkwMTNDMjAuNzA1MyA2LjY2NjM1IDE5LjQyNjkgNS4wMDU0MSAxNy43NDc0IDMuODMxOTlDMTYuMDY4IDIuNjU4NTcgMTQuMDY4NyAyLjAyOTMgMTIuMDIgMi4wMjkzQzkuOTcxMiAyLjAyOTMgNy45NzE4OSAyLjY1ODU3IDYuMjkyNDYgMy44MzE5OUM0LjYxMzA0IDUuMDA1NDEgMy4zMzQ1NSA2LjY2NjM1IDIuNjI5OTUgOC41OTAxM0MyLjYyOTk1IDguNTkwMTMgMi42Mjk5NSA4LjU5MDEzIDIuNjI5OTUgOC42NDAxM0MxLjg0MzA4IDEwLjgxMSAxLjg0MzA4IDEzLjE4OTIgMi42Mjk5NSAxNS4zNjAxQzIuNjI5OTUgMTUuMzYwMSAyLjYyOTk1IDE1LjM2MDEgMi42Mjk5NSAxNS40MTAxQzMuMzM0NTUgMTcuMzMzOSA0LjYxMzA0IDE4Ljk5NDggNi4yOTI0NiAyMC4xNjgzQzcuOTcxODkgMjEuMzQxNyA5Ljk3MTIgMjEuOTcxIDEyLjAyIDIxLjk3MUMxNC4wNjg3IDIxLjk3MSAxNi4wNjggMjEuMzQxNyAxNy43NDc0IDIwLjE2ODNDMTkuNDI2OSAxOC45OTQ4IDIwLjcwNTMgMTcuMzMzOSAyMS40MSAxNS40MTAxQzIxLjQxIDE1LjQxMDEgMjEuNDEgMTUuNDEwMSAyMS40MSAxNS4zNjAxQzIyLjE5NjggMTMuMTg5MiAyMi4xOTY4IDEwLjgxMSAyMS40MSA4LjY0MDEzWk00LjI1OTk1IDE0LjAwMDFDMy45MTMxOCAxMi42ODkzIDMuOTEzMTggMTEuMzEwOSA0LjI1OTk1IDEwLjAwMDFINi4xMTk5NUM1Ljk1OTk4IDExLjMyODcgNS45NTk5OCAxMi42NzE2IDYuMTE5OTUgMTQuMDAwMUg0LjI1OTk1Wk01LjA3OTk1IDE2LjAwMDFINi40Nzk5NUM2LjcxNDY3IDE2Ljg5MiA3LjA1MDE2IDE3Ljc1NDIgNy40Nzk5NSAxOC41NzAxQzYuNDk5MjUgMTcuOTAyMSA1LjY3OTQ1IDE3LjAyNDIgNS4wNzk5NSAxNi4wMDAxWk02LjQ3OTk1IDguMDAwMTNINS4wNzk5NUM1LjY3MDgyIDYuOTc5MjEgNi40ODAxNCA2LjEwMTU5IDcuNDQ5OTUgNS40MzAxM0M3LjAzMDUxIDYuMjQ3MzcgNi43MDUwOSA3LjEwOTU0IDYuNDc5OTUgOC4wMDAxM1pNMTEgMTkuNzAwMUM5Ljc3MTcyIDE4Ljc5ODggOC45MDkxIDE3LjQ4NTQgOC41Njk5NSAxNi4wMDAxSDExVjE5LjcwMDFaTTExIDE0LjAwMDFIOC4xMzk5NUM3Ljk1MzM0IDEyLjY3MzMgNy45NTMzNCAxMS4zMjY5IDguMTM5OTUgMTAuMDAwMUgxMVYxNC4wMDAxWk0xMSA4LjAwMDEzSDguNTY5OTVDOC45MDkxIDYuNTE0ODkgOS43NzE3MiA1LjIwMTQ0IDExIDQuMzAwMTNWOC4wMDAxM1pNMTguOTIgOC4wMDAxM0gxNy41MkMxNy4yODUyIDcuMTA4MjggMTYuOTQ5NyA2LjI0NjA2IDE2LjUyIDUuNDMwMTNDMTcuNTAwNyA2LjA5ODIgMTguMzIwNSA2Ljk3NjA3IDE4LjkyIDguMDAwMTNaTTEzIDQuMzAwMTNDMTQuMjI4MiA1LjIwMTQ0IDE1LjA5MDggNi41MTQ4OSAxNS40MyA4LjAwMDEzSDEzVjQuMzAwMTNaTTEzIDE5LjcwMDFWMTYuMDAwMUgxNS40M0MxNS4wOTA4IDE3LjQ4NTQgMTQuMjI4MiAxOC43OTg4IDEzIDE5LjcwMDFaTTE1Ljg2IDE0LjAwMDFIMTNWMTAuMDAwMUgxNS44NkMxNi4wNDY2IDExLjMyNjkgMTYuMDQ2NiAxMi42NzMzIDE1Ljg2IDE0LjAwMDFaTTE2LjU1IDE4LjU3MDFDMTYuOTc5NyAxNy43NTQyIDE3LjMxNTIgMTYuODkyIDE3LjU1IDE2LjAwMDFIMTguOTVDMTguMzUwNSAxNy4wMjQyIDE3LjUzMDcgMTcuOTAyMSAxNi41NSAxOC41NzAxWk0xOS43NCAxNC4wMDAxSDE3Ljg4QzE3Ljk2MTMgMTMuMzM2NiAxOC4wMDE0IDEyLjY2ODYgMTggMTIuMDAwMUMxOC4wMDExIDExLjMzMTYgMTcuOTYxIDEwLjY2MzcgMTcuODggMTAuMDAwMUgxOS43NEMyMC4wODY3IDExLjMxMDkgMjAuMDg2NyAxMi42ODkzIDE5Ljc0IDE0LjAwMDFaIiBmaWxsPSJibGFjayIvPgo8L3N2Zz4K");
+  }
+  .nav-icon-info {
+    -webkit-mask-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDExQzExLjczNDggMTEgMTEuNDgwNCAxMS4xMDU0IDExLjI5MjkgMTEuMjkyOUMxMS4xMDU0IDExLjQ4MDQgMTEgMTEuNzM0OCAxMSAxMlYxNkMxMSAxNi4yNjUyIDExLjEwNTQgMTYuNTE5NiAxMS4yOTI5IDE2LjcwNzFDMTEuNDgwNCAxNi44OTQ2IDExLjczNDggMTcgMTIgMTdDMTIuMjY1MiAxNyAxMi41MTk2IDE2Ljg5NDYgMTIuNzA3MSAxNi43MDcxQzEyLjg5NDYgMTYuNTE5NiAxMyAxNi4yNjUyIDEzIDE2VjEyQzEzIDExLjczNDggMTIuODk0NiAxMS40ODA0IDEyLjcwNzEgMTEuMjkyOUMxMi41MTk2IDExLjEwNTQgMTIuMjY1MiAxMSAxMiAxMVpNMTIuMzggNy4wOEMxMi4xMzY1IDYuOTc5OTggMTEuODYzNSA2Ljk3OTk4IDExLjYyIDcuMDhDMTEuNDk3MyA3LjEyNzU5IDExLjM4NTEgNy4xOTg5NiAxMS4yOSA3LjI5QzExLjIwMTcgNy4zODcyIDExLjEzMDYgNy40OTg4MiAxMS4wOCA3LjYyQzExLjAyNCA3LjczODY4IDEwLjk5NjYgNy44Njg4MiAxMSA4QzEwLjk5OTIgOC4xMzE2MSAxMS4wMjQ1IDguMjYyMDcgMTEuMDc0MiA4LjM4MzkxQzExLjEyNCA4LjUwNTc0IDExLjE5NzMgOC42MTY1NiAxMS4yOSA4LjcxQzExLjM4NzIgOC43OTgzMyAxMS40OTg4IDguODY5MzYgMTEuNjIgOC45MkMxMS43NzE1IDguOTgyMjQgMTEuOTM2IDkuMDA2MzIgMTIuMDk5IDguOTkwMTFDMTIuMjYxOSA4Ljk3MzkxIDEyLjQxODQgOC45MTc5MiAxMi41NTQ3IDguODI3MDdDMTIuNjkxIDguNzM2MjIgMTIuODAyOSA4LjYxMzI4IDEyLjg4MDUgOC40NjkwN0MxMi45NTgyIDguMzI0ODYgMTIuOTk5MiA4LjE2Mzc4IDEzIDhDMTIuOTk2MyA3LjczNTIzIDEyLjg5MjcgNy40ODE2MyAxMi43MSA3LjI5QzEyLjYxNDkgNy4xOTg5NiAxMi41MDI4IDcuMTI3NTkgMTIuMzggNy4wOFpNMTIgMkMxMC4wMjIyIDIgOC4wODg3OSAyLjU4NjQ5IDYuNDQ0MyAzLjY4NTNDNC43OTk4MSA0Ljc4NDEyIDMuNTE4MDkgNi4zNDU5IDIuNzYxMjEgOC4xNzMxN0MyLjAwNDMzIDEwLjAwMDQgMS44MDYzIDEyLjAxMTEgMi4xOTIxNSAxMy45NTA5QzIuNTc4IDE1Ljg5MDcgMy41MzA0MSAxNy42NzI1IDQuOTI4OTQgMTkuMDcxMUM2LjMyNzQ2IDIwLjQ2OTYgOC4xMDkyOSAyMS40MjIgMTAuMDQ5MSAyMS44MDc5QzExLjk4ODkgMjIuMTkzNyAxMy45OTk2IDIxLjk5NTcgMTUuODI2OCAyMS4yMzg4QzE3LjY1NDEgMjAuNDgxOSAxOS4yMTU5IDE5LjIwMDIgMjAuMzE0NyAxNy41NTU3QzIxLjQxMzUgMTUuOTExMiAyMiAxMy45Nzc4IDIyIDEyQzIyIDEwLjY4NjggMjEuNzQxMyA5LjM4NjQyIDIxLjIzODggOC4xNzMxN0MyMC43MzYzIDYuOTU5OTEgMTkuOTk5NyA1Ljg1NzUyIDE5LjA3MTEgNC45Mjg5M0MxOC4xNDI1IDQuMDAwMzUgMTcuMDQwMSAzLjI2Mzc1IDE1LjgyNjggMi43NjEyQzE0LjYxMzYgMi4yNTg2NiAxMy4zMTMyIDIgMTIgMlpNMTIgMjBDMTAuNDE3OCAyMCA4Ljg3MTA0IDE5LjUzMDggNy41NTU0NCAxOC42NTE4QzYuMjM5ODUgMTcuNzcyNyA1LjIxNDQ3IDE2LjUyMzMgNC42MDg5NyAxNS4wNjE1QzQuMDAzNDcgMTMuNTk5NyAzLjg0NTA0IDExLjk5MTEgNC4xNTM3MiAxMC40MzkzQzQuNDYyNCA4Ljg4NzQzIDUuMjI0MzMgNy40NjE5NyA2LjM0MzE1IDYuMzQzMTVDNy40NjE5NyA1LjIyNDMzIDguODg3NDMgNC40NjI0IDEwLjQzOTMgNC4xNTM3MkMxMS45OTExIDMuODQ1MDQgMTMuNTk5NyA0LjAwMzQ2IDE1LjA2MTUgNC42MDg5NkMxNi41MjMzIDUuMjE0NDcgMTcuNzcyNyA2LjIzOTg0IDE4LjY1MTggNy41NTU0NEMxOS41MzA4IDguODcxMDMgMjAgMTAuNDE3NyAyMCAxMkMyMCAxNC4xMjE3IDE5LjE1NzIgMTYuMTU2NiAxNy42NTY5IDE3LjY1NjlDMTYuMTU2NiAxOS4xNTcxIDE0LjEyMTcgMjAgMTIgMjBaIiBmaWxsPSJibGFjayIvPgo8L3N2Zz4K");
+            mask-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDExQzExLjczNDggMTEgMTEuNDgwNCAxMS4xMDU0IDExLjI5MjkgMTEuMjkyOUMxMS4xMDU0IDExLjQ4MDQgMTEgMTEuNzM0OCAxMSAxMlYxNkMxMSAxNi4yNjUyIDExLjEwNTQgMTYuNTE5NiAxMS4yOTI5IDE2LjcwNzFDMTEuNDgwNCAxNi44OTQ2IDExLjczNDggMTcgMTIgMTdDMTIuMjY1MiAxNyAxMi41MTk2IDE2Ljg5NDYgMTIuNzA3MSAxNi43MDcxQzEyLjg5NDYgMTYuNTE5NiAxMyAxNi4yNjUyIDEzIDE2VjEyQzEzIDExLjczNDggMTIuODk0NiAxMS40ODA0IDEyLjcwNzEgMTEuMjkyOUMxMi41MTk2IDExLjEwNTQgMTIuMjY1MiAxMSAxMiAxMVpNMTIuMzggNy4wOEMxMi4xMzY1IDYuOTc5OTggMTEuODYzNSA2Ljk3OTk4IDExLjYyIDcuMDhDMTEuNDk3MyA3LjEyNzU5IDExLjM4NTEgNy4xOTg5NiAxMS4yOSA3LjI5QzExLjIwMTcgNy4zODcyIDExLjEzMDYgNy40OTg4MiAxMS4wOCA3LjYyQzExLjAyNCA3LjczODY4IDEwLjk5NjYgNy44Njg4MiAxMSA4QzEwLjk5OTIgOC4xMzE2MSAxMS4wMjQ1IDguMjYyMDcgMTEuMDc0MiA4LjM4MzkxQzExLjEyNCA4LjUwNTc0IDExLjE5NzMgOC42MTY1NiAxMS4yOSA4LjcxQzExLjM4NzIgOC43OTgzMyAxMS40OTg4IDguODY5MzYgMTEuNjIgOC45MkMxMS43NzE1IDguOTgyMjQgMTEuOTM2IDkuMDA2MzIgMTIuMDk5IDguOTkwMTFDMTIuMjYxOSA4Ljk3MzkxIDEyLjQxODQgOC45MTc5MiAxMi41NTQ3IDguODI3MDdDMTIuNjkxIDguNzM2MjIgMTIuODAyOSA4LjYxMzI4IDEyLjg4MDUgOC40NjkwN0MxMi45NTgyIDguMzI0ODYgMTIuOTk5MiA4LjE2Mzc4IDEzIDhDMTIuOTk2MyA3LjczNTIzIDEyLjg5MjcgNy40ODE2MyAxMi43MSA3LjI5QzEyLjYxNDkgNy4xOTg5NiAxMi41MDI4IDcuMTI3NTkgMTIuMzggNy4wOFpNMTIgMkMxMC4wMjIyIDIgOC4wODg3OSAyLjU4NjQ5IDYuNDQ0MyAzLjY4NTNDNC43OTk4MSA0Ljc4NDEyIDMuNTE4MDkgNi4zNDU5IDIuNzYxMjEgOC4xNzMxN0MyLjAwNDMzIDEwLjAwMDQgMS44MDYzIDEyLjAxMTEgMi4xOTIxNSAxMy45NTA5QzIuNTc4IDE1Ljg5MDcgMy41MzA0MSAxNy42NzI1IDQuOTI4OTQgMTkuMDcxMUM2LjMyNzQ2IDIwLjQ2OTYgOC4xMDkyOSAyMS40MjIgMTAuMDQ5MSAyMS44MDc5QzExLjk4ODkgMjIuMTkzNyAxMy45OTk2IDIxLjk5NTcgMTUuODI2OCAyMS4yMzg4QzE3LjY1NDEgMjAuNDgxOSAxOS4yMTU5IDE5LjIwMDIgMjAuMzE0NyAxNy41NTU3QzIxLjQxMzUgMTUuOTExMiAyMiAxMy45Nzc4IDIyIDEyQzIyIDEwLjY4NjggMjEuNzQxMyA5LjM4NjQyIDIxLjIzODggOC4xNzMxN0MyMC43MzYzIDYuOTU5OTEgMTkuOTk5NyA1Ljg1NzUyIDE5LjA3MTEgNC45Mjg5M0MxOC4xNDI1IDQuMDAwMzUgMTcuMDQwMSAzLjI2Mzc1IDE1LjgyNjggMi43NjEyQzE0LjYxMzYgMi4yNTg2NiAxMy4zMTMyIDIgMTIgMlpNMTIgMjBDMTAuNDE3OCAyMCA4Ljg3MTA0IDE5LjUzMDggNy41NTU0NCAxOC42NTE4QzYuMjM5ODUgMTcuNzcyNyA1LjIxNDQ3IDE2LjUyMzMgNC42MDg5NyAxNS4wNjE1QzQuMDAzNDcgMTMuNTk5NyAzLjg0NTA0IDExLjk5MTEgNC4xNTM3MiAxMC40MzkzQzQuNDYyNCA4Ljg4NzQzIDUuMjI0MzMgNy40NjE5NyA2LjM0MzE1IDYuMzQzMTVDNy40NjE5NyA1LjIyNDMzIDguODg3NDMgNC40NjI0IDEwLjQzOTMgNC4xNTM3MkMxMS45OTExIDMuODQ1MDQgMTMuNTk5NyA0LjAwMzQ2IDE1LjA2MTUgNC42MDg5NkMxNi41MjMzIDUuMjE0NDcgMTcuNzcyNyA2LjIzOTg0IDE4LjY1MTggNy41NTU0NEMxOS41MzA4IDguODcxMDMgMjAgMTAuNDE3NyAyMCAxMkMyMCAxNC4xMjE3IDE5LjE1NzIgMTYuMTU2NiAxNy42NTY5IDE3LjY1NjlDMTYuMTU2NiAxOS4xNTcxIDE0LjEyMTcgMjAgMTIgMjBaIiBmaWxsPSJibGFjayIvPgo8L3N2Zz4K");
+  }
+
+  /* "How it works" modal — fades + slides up. Frosted card matches the
+     existing compose / langOnboard aesthetic. */
+  #helpModal {
+    position: fixed; inset: 0;
+    background: rgba(10, 18, 30, 0.55);
+    -webkit-backdrop-filter: blur(3px);
+            backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    padding: 20px;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.22s ease, visibility 0.22s ease;
+  }
+  #helpModal.open { visibility: visible; opacity: 1; }
+  .help-card {
+    background: rgba(255, 255, 255, 0.07);
+    -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+    border: 0.5px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 24px 26px 20px;
+    width: min(420px, 100%);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    transform: translateY(10px);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  #helpModal.open .help-card { transform: translateY(0); }
+  .help-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 10px;
+  }
+  .help-title {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.95);
+    margin: 0 0 22px;
+    letter-spacing: -0.01em;
+  }
+  .help-section { margin-bottom: 18px; }
+  .help-section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .help-section-header > span:last-child {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.85);
+    font-weight: 600;
+  }
+  .help-section-body {
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .help-icon-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 0 6px rgba(255, 255, 255, 0.35);
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .help-icon-flare {
+    width: 13px; height: 13px;
+    flex-shrink: 0;
+    fill: #ff9e3d;
+    filter: drop-shadow(0 0 5px rgba(255, 158, 61, 0.55));
+  }
+  .help-footer {
+    margin-top: 6px;
+    padding-top: 14px;
+    border-top: 0.5px solid rgba(255, 255, 255, 0.08);
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+    text-align: center;
+  }
 
   #langPanel {
     position: fixed;
@@ -463,10 +604,19 @@
   .lang-opt:hover { background: rgba(255, 255, 255, 0.04); color: #d8d8d8; }
   .lang-opt.active { color: #fff; background: rgba(255, 255, 255, 0.05); }
 
-  #dropBtn {
+  /* Wrapper holds both the + (drop a dot) and △ (shoot a flare) buttons so
+     they share a single bottom anchor and align by their centers. */
+  #bottomActions {
     position: fixed;
-    bottom: 50px; left: 50%;
+    bottom: 50px;
+    left: 50%;
     transform: translateX(-50%);
+    z-index: 600;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  #dropBtn {
     width: 58px; height: 58px;
     border-radius: 50%;
     border: 1px solid rgba(255, 255, 255, 0.2);
@@ -478,7 +628,6 @@
     font-weight: 200;
     line-height: 1;
     cursor: pointer;
-    z-index: 600;
     transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.2s ease;
     display: flex;
     align-items: center;
@@ -486,18 +635,396 @@
     padding: 0;
   }
   #dropBtn:hover {
-    transform: translateX(-50%) scale(1.07);
+    transform: scale(1.07);
     background: rgba(255, 255, 255, 0.18);
     box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
   }
-  #dropBtn:active { transform: translateX(-50%) scale(0.96); }
+  #dropBtn:active { transform: scale(0.96); }
   #dropBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* Pulsing dot inside the + button — reuses the same @keyframes pulse the
+     map dots use so the button visually previews what it does. */
+  .drop-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.45);
+    position: relative;
+    pointer-events: none;
+  }
+  .drop-dot::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255, 255, 255, 0.55);
+    animation: pulse 3s ease-out infinite;
+    pointer-events: none;
+  }
+
+  #flareBtn {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 158, 61, 0.4);
+    background: rgba(255, 158, 61, 0.12);
+    -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+    color: #ff9e3d;
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  #flareBtn:hover {
+    transform: scale(1.08);
+    background: rgba(255, 158, 61, 0.2);
+    box-shadow: 0 0 18px rgba(255, 158, 61, 0.25);
+  }
+  #flareBtn:active { transform: scale(0.94); }
+  #flareBtn:disabled,
+  #flareBtn.locked {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.45);
+  }
+  #flareBtn:disabled:hover,
+  #flareBtn.locked:hover {
+    transform: none;
+    background: rgba(255, 255, 255, 0.05);
+    box-shadow: none;
+  }
+  #flareBtn svg { width: 18px; height: 18px; display: block; }
+  #flareBtn.active {
+    background: rgba(255, 158, 61, 0.32);
+    border-color: rgba(255, 158, 61, 0.7);
+    color: #ffd9a5;
+    box-shadow: 0 0 18px rgba(255, 158, 61, 0.35);
+  }
+
+  /* Flare placement mode — user aims at any point on the map. While active:
+     crosshair cursor, existing markers/popups stop receiving pointer events,
+     and a floating amber-tinted label tracks the cursor (desktop) or finger
+     (mobile, while pressed) showing the city under the aim. */
+  body.flare-placing .leaflet-container { cursor: crosshair; }
+  body.flare-placing .leaflet-marker-icon,
+  body.flare-placing .leaflet-popup,
+  body.flare-placing .leaflet-tooltip {
+    pointer-events: none !important;
+  }
+  #flareAimLabel {
+    position: fixed;
+    z-index: 700;
+    pointer-events: none;
+    background: rgba(40, 22, 8, 0.92);
+    -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+    color: rgba(255, 230, 200, 0.92);
+    border: 0.5px solid rgba(255, 158, 61, 0.35);
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 11.5px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+    transform: translate(-50%, calc(-100% - 14px));
+    display: none;
+  }
+  #flareAimLabel.show { display: block; }
+
+  /* Flare markers — distinct upward triangle shape, white-amber palette. */
+  .flare-wrap { background: transparent !important; border: none !important; }
+  .flare {
+    width: 23px;
+    height: 23px;
+    cursor: pointer;
+    transition: transform 0.18s ease;
+  }
+  .flare svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+  }
+  .flare svg polygon {
+    fill: #ff9e3d;
+    stroke: none;
+    stroke-width: 0;
+    transition: filter 0.3s ease;
+  }
+  .flare:hover { transform: scale(1.18); }
+  .flare.expanded { transform: scale(1.45); }
+
+  /* Unanswered = beacon. Faster, more urgent pulse than dots. */
+  .flare.unanswered svg { animation: flarePulse 1.6s ease-in-out infinite; }
+  @keyframes flarePulse {
+    0%, 100% {
+      filter: drop-shadow(0 0 5px rgba(255, 158, 61, 0.55));
+      transform: scale(1);
+    }
+    50% {
+      filter: drop-shadow(0 0 14px rgba(255, 158, 61, 0.95))
+              drop-shadow(0 0 22px rgba(255, 158, 61, 0.4));
+      transform: scale(1.12);
+    }
+  }
+  /* Answered = settled. No pulse, dimmed, slightly smaller. */
+  .flare.answered svg {
+    opacity: 0.55;
+    filter: drop-shadow(0 0 3px rgba(255, 158, 61, 0.3));
+  }
+  .flare.answered { transform: scale(0.88); }
+  .flare.answered:hover { transform: scale(1.05); }
+
+  /* Mine = white-ring outline, same as .dot.mine treatment. */
+  .flare.mine svg polygon {
+    stroke: #ffffff;
+    stroke-width: 1.5;
+    stroke-linejoin: round;
+    paint-order: stroke fill;
+  }
+  .flare.mine.unanswered svg { animation-name: flarePulseMine; }
+  @keyframes flarePulseMine {
+    0%, 100% {
+      filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.45))
+              drop-shadow(0 0 8px rgba(255, 158, 61, 0.5));
+      transform: scale(1);
+    }
+    50% {
+      filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.7))
+              drop-shadow(0 0 22px rgba(255, 158, 61, 0.55));
+      transform: scale(1.12);
+    }
+  }
+
+  /* Flare hover preview (desktop only) */
+  .leaflet-tooltip.flare-tooltip {
+    background: rgba(40, 22, 8, 0.92);
+    -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(8px);
+    color: rgba(255, 230, 200, 0.9);
+    border: 0.5px solid rgba(255, 158, 61, 0.3);
+    border-radius: 6px;
+    padding: 5px 9px;
+    font-size: 12px;
+    line-height: 1.3;
+    max-width: 240px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    pointer-events: none;
+  }
+  .leaflet-tooltip.flare-tooltip::before { display: none; }
+
+  /* Flare popup — wider than dot popup since it can hold a response area.
+     Scoped via the `flare-popup` className on the leaflet popup so the
+     dot popup's globally-forced 220px width doesn't clamp it, and so the
+     content wrapper has enough bottom margin that the respond button
+     never sits flush against the popup edge. */
+  .leaflet-popup.flare-popup .leaflet-popup-content {
+    width: 240px !important;
+    margin: 14px 16px 16px;
+  }
+  .leaflet-popup.flare-popup .leaflet-popup-content-wrapper {
+    overflow: visible;
+  }
+  .flare-popup-content {
+    width: 240px;
+    padding-bottom: 4px;
+  }
+  .flare-popup-eyebrow {
+    font-size: 9px;
+    color: rgba(255, 158, 61, 0.7);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  .flare-popup-q {
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 14px;
+    line-height: 1.45;
+    word-wrap: break-word;
+  }
+  .flare-popup-meta {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 9.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
+  }
+  .flare-popup-meta-divider { color: rgba(255, 255, 255, 0.2); }
+  .flare-popup-divider {
+    height: 0.5px;
+    background: rgba(255, 255, 255, 0.08);
+    margin: 16px -4px;
+  }
+  .flare-popup-response-label {
+    font-size: 9px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 10px;
+  }
+  .flare-popup-response-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .flare-popup-response {
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 13px;
+    line-height: 1.45;
+    word-wrap: break-word;
+    padding-left: 10px;
+    border-left: 1.5px solid rgba(255, 158, 61, 0.32);
+  }
+  .flare-popup-locked {
+    margin-top: 14px;
+    font-size: 10.5px;
+    color: rgba(255, 255, 255, 0.45);
+    line-height: 1.4;
+    letter-spacing: 0.04em;
+  }
+  .flare-popup-respond-area textarea {
+    width: 100%;
+    min-height: 56px;
+    border: none;
+    outline: none;
+    resize: none;
+    font: inherit;
+    font-size: 13px;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.92);
+    padding: 0;
+    margin-top: 2px;
+    background: transparent;
+    caret-color: rgba(255, 255, 255, 0.9);
+  }
+  .flare-popup-respond-area textarea::placeholder { color: rgba(255, 255, 255, 0.32); }
+  .flare-popup-respond-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 0.5px solid rgba(255, 255, 255, 0.06);
+  }
+  .flare-popup-counter {
+    font-size: 10.5px;
+    color: rgba(255, 255, 255, 0.3);
+    font-variant-numeric: tabular-nums;
+  }
+  .flare-popup-counter.over { color: rgba(255, 140, 110, 0.85); }
+  .flare-popup-error {
+    margin-top: 8px;
+    font-size: 11px;
+    color: rgba(255, 150, 150, 0.85);
+    line-height: 1.35;
+  }
+
+  /* Flare compose modal — same structure as dot compose, amber accents. */
+  #flareCompose {
+    position: fixed; inset: 0;
+    background: rgba(10, 18, 30, 0.55);
+    -webkit-backdrop-filter: blur(3px);
+            backdrop-filter: blur(3px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  #flareCompose.open { display: flex; }
+  .flare-compose-card {
+    background: rgba(255, 255, 255, 0.07);
+    -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+    border: 0.5px solid rgba(255, 158, 61, 0.18);
+    border-radius: 12px;
+    padding: 20px 22px 16px;
+    width: min(440px, 92vw);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  }
+  .flare-compose-eyebrow {
+    font-size: 10px;
+    color: rgba(255, 158, 61, 0.65);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .flare-compose-target {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.45);
+    margin-bottom: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .flare-compose-card textarea {
+    width: 100%;
+    min-height: 84px;
+    border: none;
+    outline: none;
+    resize: none;
+    font: inherit;
+    font-size: 15px;
+    line-height: 1.5;
+    color: rgba(255, 255, 255, 0.9);
+    padding: 0;
+    background: transparent;
+    caret-color: rgba(255, 158, 61, 0.9);
+  }
+  .flare-compose-card textarea::placeholder { color: rgba(255, 255, 255, 0.35); }
+  .flare-compose-error {
+    margin-top: 10px;
+    font-size: 11.5px;
+    color: rgba(255, 150, 150, 0.85);
+    line-height: 1.4;
+  }
+  .flare-compose-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    padding-top: 10px;
+    border-top: 0.5px solid rgba(255, 158, 61, 0.12);
+  }
+  .flare-compose-counter {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.3);
+    font-variant-numeric: tabular-nums;
+  }
+  .flare-compose-counter.over { color: rgba(255, 140, 110, 0.85); }
+  .flare-btn-primary {
+    background: rgba(255, 158, 61, 0.85);
+    color: #1a0e02;
+    border: 0.5px solid rgba(255, 158, 61, 0.85);
+    padding: 6px 14px;
+    font: inherit;
+    font-size: 12.5px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .flare-btn-primary:hover { background: rgba(255, 158, 61, 0.95); }
+  .flare-btn-primary:disabled {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.3);
+    cursor: not-allowed;
+  }
 
   /* Prompt below the drop button — only shown when the user hasn't
      dropped today. Sits below the + with breathing room. */
   #dropPrompt {
     position: fixed;
-    bottom: 22px;
+    bottom: 134px;
     left: 50%;
     transform: translateX(-50%);
     font-size: 10px;
@@ -508,7 +1035,12 @@
     z-index: 500;
     white-space: nowrap;
     transition: opacity 0.6s ease;
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    background: rgba(13, 24, 38, 0.55);
+    -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    padding: 6px 14px;
+    border-radius: 100px;
   }
   #dropPrompt.gone { opacity: 0; }
 
@@ -620,8 +1152,8 @@
   /* ───────── Heard Around the World panel ───────── */
   #hwPanel {
     position: fixed;
-    bottom: 14px;
-    left: 14px;
+    bottom: 24px;
+    left: 24px;
     z-index: 600;
     width: 280px;
     background: rgba(13, 24, 38, 0.72);
@@ -832,6 +1364,21 @@
     #hwPanel { display: none !important; }
     #hwToggle { display: block; }
     .leaflet-control-zoom { display: none !important; }
+
+    /* Mobile drop zone — + button anchored to the very bottom (clear of the
+       safe-area inset for notched devices and browser chrome), and every hint
+       message ("say something to the world", "you've already left your mark
+       today", flashed feedback, etc.) shares a single spot directly above it.
+       58px = #dropBtn height; the 14s are matching gaps above and below. */
+    #bottomActions {
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 14px) !important;
+      top: auto !important;
+    }
+    #dropPrompt,
+    #hint {
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 86px) !important;
+      top: auto !important;
+    }
   }
 </style>
 </head>
@@ -843,12 +1390,10 @@
   <div class="nav-right">
     <div id="resetTimer" aria-live="off"></div>
     <button id="langBtn" type="button" aria-label="translation language" aria-haspopup="true" aria-expanded="false">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="9"/>
-        <path d="M3 12h18"/>
-        <path d="M12 3a14 14 0 0 1 0 18"/>
-        <path d="M12 3a14 14 0 0 0 0 18"/>
-      </svg>
+      <span class="nav-icon nav-icon-translate" aria-hidden="true"></span>
+    </button>
+    <button id="helpBtn" type="button" aria-label="how it works">
+      <span class="nav-icon nav-icon-info" aria-hidden="true"></span>
     </button>
   </div>
 </nav>
@@ -856,8 +1401,16 @@
 
 <div id="map"></div>
 <div id="hint" class="gone"></div>
+<div id="flareAimLabel" aria-hidden="true"></div>
 
-<button id="dropBtn" type="button" aria-label="leave a message">+</button>
+<div id="bottomActions">
+  <button id="dropBtn" type="button" aria-label="leave a message"><span class="drop-dot" aria-hidden="true"></span></button>
+  <button id="flareBtn" class="locked" type="button" aria-label="shoot a flare">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <polygon points="12,1 13.5,10.5 23,12 13.5,13.5 12,23 10.5,13.5 1,12 10.5,10.5" fill="currentColor"/>
+    </svg>
+  </button>
+</div>
 <div id="dropPrompt" aria-hidden="true">say something to the world</div>
 
 <div id="hwPanel" class="empty" aria-label="heard around the world">
@@ -899,6 +1452,30 @@
   </div>
 </div>
 
+<div id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+  <div class="help-card">
+    <div class="help-eyebrow">how it works</div>
+    <h2 id="helpModalTitle" class="help-title">Hello, World</h2>
+    <div class="help-section">
+      <div class="help-section-header">
+        <span class="help-icon-dot" aria-hidden="true"></span>
+        <span>Dots</span>
+      </div>
+      <div class="help-section-body">Drop one per day at your exact location. Say something to the world — how you feel, what you're thinking, anything.</div>
+    </div>
+    <div class="help-section">
+      <div class="help-section-header">
+        <svg class="help-icon-flare" viewBox="0 0 24 24" aria-hidden="true">
+          <polygon points="12,1 13.5,10.5 23,12 13.5,13.5 12,23 10.5,13.5 1,12 10.5,10.5"/>
+        </svg>
+        <span>Flares</span>
+      </div>
+      <div class="help-section-body">Aim one anywhere on the map. Only people physically in that continent can respond. One flare per day.</div>
+    </div>
+    <div class="help-footer">Everything resets at midnight UTC.</div>
+  </div>
+</div>
+
 <div id="compose" role="dialog" aria-modal="true">
   <div class="compose-card">
     <div class="compose-loc" id="composeLoc">somewhere</div>
@@ -910,6 +1487,22 @@
       <div class="btn-row">
         <button class="btn" id="cancelBtn" type="button">cancel</button>
         <button class="btn primary" id="sendBtn" type="button" disabled>send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="flareCompose" role="dialog" aria-modal="true">
+  <div class="flare-compose-card">
+    <div class="flare-compose-eyebrow">shoot a flare</div>
+    <div class="flare-compose-target" id="flareComposeTarget">addressed to the world</div>
+    <textarea id="flareComposeText" maxlength="280" placeholder="ask something of the world..."></textarea>
+    <div id="flareComposeError" class="flare-compose-error" hidden></div>
+    <div class="flare-compose-actions">
+      <div class="flare-compose-counter" id="flareComposeCounter">280</div>
+      <div class="btn-row">
+        <button class="btn" id="flareCancelBtn" type="button">cancel</button>
+        <button class="flare-btn-primary" id="flareSendBtn" type="button" disabled>shoot</button>
       </div>
     </div>
   </div>
@@ -2032,6 +2625,7 @@ async function submit() {
   hideHint();
   syncDropPrompt();
   scheduleHeardPanelRender();
+  syncFlareBtn();
 }
 
 // ───────────── LANGUAGE / TRANSLATION ─────────────
@@ -2426,9 +3020,27 @@ window.resetMyDot = function () {
   dropBtn.disabled = false;
   syncDropPrompt();
   scheduleHeardPanelRender();
+  syncFlareBtn();
   console.log("%c[dev] resetMyDot: localStorage cleared, ready for a new drop", "color:#888");
   return "ok";
 };
+
+// ───────────── HELP MODAL ─────────────
+(function wireHelpModal() {
+  const btn = document.getElementById("helpBtn");
+  const modal = document.getElementById("helpModal");
+  if (!btn || !modal) return;
+  const open = () => modal.classList.add("open");
+  const close = () => modal.classList.remove("open");
+  btn.addEventListener("click", open);
+  modal.addEventListener("click", (e) => {
+    // Only the backdrop closes; clicks on the card itself shouldn't.
+    if (e.target === modal) close();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal.classList.contains("open")) close();
+  });
+})();
 
 // ───────────── HEARD CAROUSEL — collapse toggle ─────────────
 (function wireCarouselCollapse() {
@@ -2513,6 +3125,579 @@ window.resetMyDot = function () {
   }, true);
 })();
 
+// ───────────── FLARES ─────────────
+// A flare is a question/wish anchored to a continent. One person from that
+// continent can answer it; first responder wins (enforced server-side via the
+// `responder_id is null` UPDATE policy). Flares unlock once the user has
+// dropped a dot today; they reset at midnight UTC with everything else.
+
+const PLANTER_KEY = "hw-planter-id";
+const FLARE_KEY = "hw-user-flares";
+
+// Stable per-device identifier so the user can be recognized as a flare's
+// planter across reloads. Generated lazily, never sent anywhere except as
+// `planter_id` on flare inserts and `responder_id` on responses.
+function getPlanterId() {
+  let id = localStorage.getItem(PLANTER_KEY);
+  if (!id) {
+    id = (window.crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2) + Date.now().toString(36);
+    localStorage.setItem(PLANTER_KEY, id);
+  }
+  return id;
+}
+const PLANTER_ID = getPlanterId();
+
+function loadUserFlares() {
+  try {
+    const raw = localStorage.getItem(FLARE_KEY);
+    if (!raw) return [];
+    const data = JSON.parse(raw);
+    if (data && data.date === todayStamp() && Array.isArray(data.ids)) return data.ids;
+  } catch (e) {}
+  return [];
+}
+function saveUserFlares(ids) {
+  try {
+    localStorage.setItem(FLARE_KEY, JSON.stringify({ date: todayStamp(), ids }));
+  } catch (e) {}
+}
+function hasShotFlareToday() { return loadUserFlares().length > 0; }
+
+// What continent is "mine" for the purposes of responding to flares? We use
+// the continent of the dot they dropped today. If they haven't dropped, no
+// continent is known and the respond button is hidden.
+function myCurrentContinent() {
+  const mine = loadUserMessages().find(m => m.mine);
+  if (!mine) return null;
+  return continentFromLatLng(mine.lat, mine.lng);
+}
+
+let flares = [];
+const flareMarkers = new Map();
+const flareLayer = L.layerGroup();
+
+function rowToFlare(row) {
+  return {
+    id: row.id,
+    text: row.text,
+    lat: row.lat,
+    lng: row.lng,
+    loc: row.loc || "",
+    continent: row.continent || continentFromLatLng(row.lat, row.lng),
+    planter_id: row.planter_id,
+    planter_loc: row.planter_loc || "",
+    responses: [],
+    mine: row.planter_id === PLANTER_ID
+  };
+}
+
+function flareIconHtml(flare) {
+  const hasResponses = (flare.responses || []).length > 0;
+  const classes = [
+    "flare",
+    hasResponses ? "answered" : "unanswered",
+    flare.mine ? "mine" : ""
+  ].filter(Boolean).join(" ");
+  // Four-pointed glint star: long points top/right/bottom/left, narrow waist
+  // through the diagonal concave anchors at ±1.5 from the center.
+  return `<div class="${classes}"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><polygon points="12,1 13.5,10.5 23,12 13.5,13.5 12,23 10.5,13.5 1,12 10.5,10.5"/></svg></div>`;
+}
+
+function addFlareMarker(flare) {
+  const icon = L.divIcon({
+    className: "flare-wrap",
+    html: flareIconHtml(flare),
+    iconSize: [23, 23],
+    iconAnchor: [11.5, 11.5]
+  });
+  const m = L.marker([flare.lat, flare.lng], { icon, riseOnHover: true, keyboard: false });
+  m.bindPopup(() => buildFlarePopup(flare), {
+    closeButton: false,
+    minWidth: 240,
+    maxWidth: 280,
+    autoPan: true,
+    className: "flare-popup"
+  });
+
+  if (IS_HOVER_DEVICE && flare.text) {
+    m.bindTooltip(escapeHtml(firstLine(flare.text)), {
+      direction: "top",
+      offset: [0, -14],
+      opacity: 1,
+      className: "flare-tooltip"
+    });
+  }
+
+  m.on("popupopen", () => {
+    const el = m.getElement();
+    if (el) { const f = el.querySelector(".flare"); if (f) f.classList.add("expanded"); }
+  });
+  m.on("popupclose", () => {
+    const el = m.getElement();
+    if (el) { const f = el.querySelector(".flare"); if (f) f.classList.remove("expanded"); }
+  });
+
+  flareLayer.addLayer(m);
+  flareMarkers.set(flare.id, m);
+}
+
+// Replace a marker's icon in place — used when a flare gets answered to swap
+// from .unanswered to .answered without recreating the popup binding.
+function refreshFlareMarkerStyle(flare) {
+  const m = flareMarkers.get(flare.id);
+  if (!m) return;
+  const newIcon = L.divIcon({
+    className: "flare-wrap",
+    html: flareIconHtml(flare),
+    iconSize: [23, 23],
+    iconAnchor: [11.5, 11.5]
+  });
+  m.setIcon(newIcon);
+  // If the popup is currently open, refresh its content too so a viewer sees
+  // the response appear without having to close + reopen.
+  if (m.isPopupOpen && m.isPopupOpen()) {
+    const popup = m.getPopup();
+    if (popup) {
+      popup.setContent(buildFlarePopup(flare));
+      if (popup.update) popup.update();
+    }
+  }
+}
+
+function buildFlarePopup(flare) {
+  const wrap = document.createElement("div");
+  wrap.className = "flare-popup-content";
+
+  const myContinent = myCurrentContinent();
+  const sameContinent = myContinent && myContinent === flare.continent;
+  const responses = flare.responses || [];
+  const alreadyResponded = responses.some(r => r.responder_id === PLANTER_ID);
+  const canRespond = sameContinent && !alreadyResponded;
+  const isMine = flare.planter_id === PLANTER_ID;
+
+  let html =
+    `<div class="flare-popup-eyebrow">flare · ${escapeHtml(flare.continent || "")}</div>` +
+    `<div class="flare-popup-q">${escapeHtml(flare.text)}</div>` +
+    `<div class="flare-popup-meta">` +
+      `<span>${isMine ? "your flare" : "from " + escapeHtml(flare.planter_loc || flare.continent || "")}</span>` +
+    `</div>`;
+
+  // Existing responses (can coexist with the respond UI — multiple answers
+  // accumulate over the day).
+  if (responses.length > 0) {
+    html +=
+      `<div class="flare-popup-divider"></div>` +
+      `<div class="flare-popup-response-label">${responses.length} ${responses.length === 1 ? "response" : "responses"}</div>` +
+      `<div class="flare-popup-response-list">`;
+    for (const r of responses) {
+      html += `<div class="flare-popup-response">${escapeHtml(r.text)}</div>`;
+    }
+    html += `</div>`;
+  }
+
+  // Respond UI shows whenever the viewer is in the target continent and hasn't
+  // already responded to this flare. No "first writer wins" lock — many people
+  // in the continent can each leave a reply.
+  if (canRespond) {
+    html +=
+      `<div class="flare-popup-divider"></div>` +
+      `<div class="flare-popup-respond-area">` +
+        `<textarea data-flare-respond maxlength="280" placeholder="say something back..."></textarea>` +
+        `<div class="flare-popup-respond-actions">` +
+          `<span class="flare-popup-counter" data-flare-counter>280</span>` +
+          `<button class="flare-btn-primary" data-flare-send disabled>respond</button>` +
+        `</div>` +
+        `<div class="flare-popup-error" data-flare-error hidden></div>` +
+      `</div>`;
+  } else if (responses.length === 0 && isMine) {
+    html += `<div class="flare-popup-locked">waiting for replies from ${escapeHtml(flare.continent || "")}…</div>`;
+  } else if (responses.length === 0 && !sameContinent) {
+    html += `<div class="flare-popup-locked">only people in ${escapeHtml(flare.continent || "")} can answer.</div>`;
+  }
+
+  wrap.innerHTML = html;
+
+  // Wire up the respond UI if it's present.
+  const ta = wrap.querySelector("[data-flare-respond]");
+  const sendBtn = wrap.querySelector("[data-flare-send]");
+  const counter = wrap.querySelector("[data-flare-counter]");
+  const errEl = wrap.querySelector("[data-flare-error]");
+  if (ta && sendBtn && counter) {
+    const sync = () => {
+      const len = ta.value.length;
+      counter.textContent = String(280 - len);
+      counter.classList.toggle("over", len > 280);
+      sendBtn.disabled = !(len > 0 && len <= 280);
+      if (errEl && !errEl.hidden) { errEl.hidden = true; errEl.textContent = ""; }
+    };
+    ta.addEventListener("input", sync);
+    sendBtn.addEventListener("click", async () => {
+      const text = ta.value.trim();
+      if (!text || text.length > 280) return;
+      sendBtn.disabled = true;
+      const ok = await respondToFlare(flare.id, text, errEl);
+      if (!ok) sendBtn.disabled = false;
+    });
+  }
+
+  return wrap;
+}
+
+// Multi-response model — each respond click inserts a new row in
+// `flare_responses`. No "first writer wins" lock; many people in the target
+// continent can each leave a reply. Continent gating is enforced client-side
+// (the respond UI is only rendered when sameContinent is true) and the
+// duplicate-by-same-device check uses planter_id.
+async function respondToFlare(flareId, text, errEl) {
+  try {
+    const { data, error } = await sb
+      .from("flare_responses")
+      .insert({ flare_id: flareId, responder_id: PLANTER_ID, text })
+      .select()
+      .single();
+
+    if (error || !data) {
+      if (errEl) {
+        errEl.hidden = false;
+        errEl.textContent = "couldn't send. check your connection.";
+      }
+      return false;
+    }
+
+    // Local mirror so the popup updates without waiting for the realtime echo.
+    const f = flares.find(f => f.id === flareId);
+    if (f) {
+      if (!f.responses) f.responses = [];
+      if (!f.responses.some(r => r.id === data.id)) f.responses.push(data);
+      refreshFlareMarkerStyle(f);
+    }
+    return true;
+  } catch (e) {
+    if (errEl) {
+      errEl.hidden = false;
+      errEl.textContent = "couldn't send. check your connection.";
+    }
+    return false;
+  }
+}
+
+// ───────────── FLARE COMPOSE ─────────────
+const flareCompose = document.getElementById("flareCompose");
+const flareComposeText = document.getElementById("flareComposeText");
+const flareComposeTarget = document.getElementById("flareComposeTarget");
+const flareComposeCounter = document.getElementById("flareComposeCounter");
+const flareComposeError = document.getElementById("flareComposeError");
+const flareSendBtn = document.getElementById("flareSendBtn");
+const flareCancelBtn = document.getElementById("flareCancelBtn");
+const flareBtn = document.getElementById("flareBtn");
+
+let pendingFlareLatLng = null;
+
+function showFlareError(text) {
+  flareComposeError.textContent = text;
+  flareComposeError.hidden = false;
+}
+function clearFlareError() {
+  flareComposeError.textContent = "";
+  flareComposeError.hidden = true;
+}
+function updateFlareCounter() {
+  const len = flareComposeText.value.length;
+  flareComposeCounter.textContent = String(280 - len);
+  flareComposeCounter.classList.toggle("over", len > 280);
+  flareSendBtn.disabled = !(len > 0 && len <= 280);
+  if (!flareComposeError.hidden) clearFlareError();
+}
+
+function openFlareCompose(latlng, continent) {
+  pendingFlareLatLng = latlng;
+  flareComposeText.value = "";
+  // City extracted from `nearestCity` ("Tokyo, Japan" → "Tokyo") so the
+  // confirmation reads like "sending a flare to TOKYO, ASIA".
+  const city = (nearestCity(latlng.lat, latlng.lng) || "").split(",")[0].trim();
+  flareComposeTarget.textContent = city
+    ? `sending a flare to ${city}, ${continent}`
+    : `sending a flare to ${continent}`;
+  clearFlareError();
+  updateFlareCounter();
+  flareCompose.classList.add("open");
+  setTimeout(() => flareComposeText.focus(), 60);
+}
+function closeFlareCompose() {
+  flareCompose.classList.remove("open");
+  pendingFlareLatLng = null;
+}
+
+async function submitFlare() {
+  const text = flareComposeText.value.trim();
+  if (!text || text.length > 280 || !pendingFlareLatLng) return;
+  if (URL_RE.test(text)) {
+    showFlareError("links aren't allowed here. plain text only.");
+    return;
+  }
+  if (hasShotFlareToday()) { closeFlareCompose(); return; }
+
+  const ll = pendingFlareLatLng;
+  const continent = continentFromLatLng(ll.lat, ll.lng);
+  const loc = nearestCity(ll.lat, ll.lng);
+  // planter_loc = where the flare was SHOT FROM (the planter's actual GPS).
+  // Distinct from `loc` which is the AIM city. Captured up in requestFlare();
+  // falls back to "" if for some reason geolocation didn't yield coords.
+  const planter_loc = planterLatLng
+    ? nearestCity(planterLatLng.lat, planterLatLng.lng)
+    : "";
+
+  flareSendBtn.disabled = true;
+
+  const { data, error } = await sb
+    .from("flares")
+    .insert({
+      text,
+      // Flares store full precision — they're intentional placements where the
+      // exact spot is the message. (Dots round to 3dp for privacy.)
+      lat: ll.lat,
+      lng: ll.lng,
+      loc,
+      continent,
+      planter_id: PLANTER_ID,
+      planter_loc
+    })
+    .select()
+    .single();
+
+  if (error || !data) {
+    flareSendBtn.disabled = false;
+    showFlareError("couldn't shoot. check your connection.");
+    return;
+  }
+
+  const flare = rowToFlare(data);
+  flare.mine = true;
+  flares.push(flare);
+  saveUserFlares([...loadUserFlares(), flare.id]);
+  addFlareMarker(flare);
+  if (!map.hasLayer(flareLayer)) flareLayer.addTo(map);
+
+  planterLatLng = null;
+  closeFlareCompose();
+  syncFlareBtn();
+  const m = flareMarkers.get(flare.id);
+  if (m) m.openPopup();
+}
+
+flareComposeText.addEventListener("input", updateFlareCounter);
+flareSendBtn.addEventListener("click", submitFlare);
+flareCancelBtn.addEventListener("click", closeFlareCompose);
+flareCompose.addEventListener("click", (e) => {
+  if (e.target === flareCompose) closeFlareCompose();
+});
+document.addEventListener("keydown", (e) => {
+  if (!flareCompose.classList.contains("open")) return;
+  if (e.key === "Escape") closeFlareCompose();
+  else if ((e.metaKey || e.ctrlKey) && e.key === "Enter") submitFlare();
+});
+
+// Locked-state visual on the flare button. Locked when:
+//   1. user hasn't dropped a dot today (must drop first to shoot)
+//   2. user has already shot a flare today
+function syncFlareBtn() {
+  if (!flareBtn) return;
+  const dropped = hasDroppedToday();
+  const shot = hasShotFlareToday();
+  flareBtn.classList.toggle("locked", !dropped || shot);
+  flareBtn.setAttribute("aria-label", !dropped
+    ? "drop a dot first to unlock flares"
+    : shot ? "you've shot a flare today" : "shoot a flare");
+}
+
+// Flare placement is a two-step interaction:
+//   1. user taps the flare button → GPS check (proves they're real; coords
+//      are NOT used for the flare's position)
+//   2. placement mode is enabled → desktop: cursor tracks across the map with
+//      a floating city label, click to place. Mobile: press-and-hold to aim
+//      (label tracks the finger), lift to launch.
+let flarePlacementMode = false;
+let touchAiming = false;
+let lastAimLatLng = null;
+const aimLabelEl = document.getElementById("flareAimLabel");
+
+function pinHint(text) {
+  hint.textContent = text;
+  hint.classList.remove("gone");
+  clearTimeout(hintTimer);
+}
+
+function updateAimLabel(clientX, clientY, latlng) {
+  if (!aimLabelEl) return;
+  const txt = nearestCity(latlng.lat, latlng.lng);
+  aimLabelEl.textContent = txt;
+  aimLabelEl.style.left = clientX + "px";
+  aimLabelEl.style.top = clientY + "px";
+  aimLabelEl.classList.add("show");
+}
+function hideAimLabel() {
+  if (aimLabelEl) aimLabelEl.classList.remove("show");
+}
+
+function enterFlarePlacementMode() {
+  flarePlacementMode = true;
+  document.body.classList.add("flare-placing");
+  flareBtn.classList.add("active");
+  // Touch and desktop have different aim mechanics, so the hint differs too.
+  pinHint(IS_HOVER_DEVICE
+    ? "tap anywhere on the map to place your flare"
+    : "press and hold to aim · lift to launch");
+  // On touch we suspend map drag/zoom so press-and-hold lands as an aim gesture
+  // instead of panning the map. Desktop keeps drag enabled (so the user can
+  // pan around looking for a target before clicking).
+  if (!IS_HOVER_DEVICE) {
+    map.dragging.disable();
+    if (map.touchZoom) map.touchZoom.disable();
+  }
+}
+function exitFlarePlacementMode() {
+  if (!flarePlacementMode) return;
+  flarePlacementMode = false;
+  touchAiming = false;
+  lastAimLatLng = null;
+  // If the user cancels (vs. completes) placement, drop the captured GPS so
+  // the next flare attempt gets a fresh sample.
+  if (!flareCompose.classList.contains("open")) planterLatLng = null;
+  document.body.classList.remove("flare-placing");
+  flareBtn.classList.remove("active");
+  hideHint();
+  hideAimLabel();
+  if (!IS_HOVER_DEVICE) {
+    map.dragging.enable();
+    if (map.touchZoom) map.touchZoom.enable();
+  }
+}
+
+// Captured at the moment the user taps the flare button — used as the
+// "FROM" location stamped on the flare. Cleared after each flare is sent
+// (or placement mode is cancelled).
+let planterLatLng = null;
+
+function requestFlare() {
+  // Tapping the button while in placement mode cancels.
+  if (flarePlacementMode) { exitFlarePlacementMode(); return; }
+  if (!hasDroppedToday()) {
+    flashHint("drop a dot first to unlock flares");
+    return;
+  }
+  if (hasShotFlareToday()) {
+    flashHint("you've shot your flare today");
+    return;
+  }
+  if (!navigator.geolocation) { showGeoDenied(); return; }
+
+  flareBtn.disabled = true;
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      // GPS used for verification AND captured as planter_loc — proves the
+      // user is real, and stamps the flare with where it was shot from.
+      // The actual flare's lat/lng comes from the next map tap (the aim).
+      planterLatLng = L.latLng(pos.coords.latitude, pos.coords.longitude);
+      flareBtn.disabled = false;
+      enterFlarePlacementMode();
+    },
+    () => { flareBtn.disabled = false; showGeoDenied(); },
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+  );
+}
+flareBtn.addEventListener("click", requestFlare);
+
+// ── Aim handlers — desktop (hover + click) ──
+if (IS_HOVER_DEVICE) {
+  map.on("mousemove", (e) => {
+    if (!flarePlacementMode) return;
+    updateAimLabel(e.originalEvent.clientX, e.originalEvent.clientY, e.latlng);
+  });
+  map.on("mouseout", () => {
+    if (flarePlacementMode) hideAimLabel();
+  });
+  map.on("click", (e) => {
+    if (!flarePlacementMode) return;
+    const ll = e.latlng;
+    const continent = continentFromLatLng(ll.lat, ll.lng);
+    exitFlarePlacementMode();
+    openFlareCompose(ll, continent);
+  });
+}
+
+// ── Aim handlers — touch (press-and-hold, lift to launch) ──
+// Bound to the map container directly because Leaflet's own touch events
+// don't expose pointer-down vs pointer-up cleanly enough for this gesture.
+if (!IS_HOVER_DEVICE) {
+  const mapEl = map.getContainer();
+
+  function pointFromTouch(touch) {
+    const rect = mapEl.getBoundingClientRect();
+    return {
+      point: L.point(touch.clientX - rect.left, touch.clientY - rect.top),
+      clientX: touch.clientX,
+      clientY: touch.clientY
+    };
+  }
+
+  mapEl.addEventListener("touchstart", (e) => {
+    if (!flarePlacementMode) return;
+    if (e.touches.length !== 1) return;
+    e.preventDefault();
+    touchAiming = true;
+    const { point, clientX, clientY } = pointFromTouch(e.touches[0]);
+    const latlng = map.containerPointToLatLng(point);
+    lastAimLatLng = latlng;
+    updateAimLabel(clientX, clientY, latlng);
+  }, { passive: false });
+
+  mapEl.addEventListener("touchmove", (e) => {
+    if (!flarePlacementMode || !touchAiming) return;
+    e.preventDefault();
+    const { point, clientX, clientY } = pointFromTouch(e.touches[0]);
+    const latlng = map.containerPointToLatLng(point);
+    lastAimLatLng = latlng;
+    updateAimLabel(clientX, clientY, latlng);
+  }, { passive: false });
+
+  mapEl.addEventListener("touchend", () => {
+    if (!flarePlacementMode || !touchAiming) return;
+    touchAiming = false;
+    const ll = lastAimLatLng;
+    if (!ll) { hideAimLabel(); return; }
+    const continent = continentFromLatLng(ll.lat, ll.lng);
+    exitFlarePlacementMode();
+    openFlareCompose(ll, continent);
+  });
+
+  mapEl.addEventListener("touchcancel", () => {
+    if (!flarePlacementMode) return;
+    touchAiming = false;
+    hideAimLabel();
+  });
+}
+
+// ESC cancels placement.
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && flarePlacementMode) exitFlarePlacementMode();
+});
+
+// Dev helper — clears today's flare lock so you can shoot another for testing.
+window.resetMyFlare = function () {
+  localStorage.removeItem(FLARE_KEY);
+  for (const f of flares.filter(f => f.mine)) {
+    const m = flareMarkers.get(f.id);
+    if (m) flareLayer.removeLayer(m);
+    flareMarkers.delete(f.id);
+  }
+  flares = flares.filter(f => !f.mine);
+  syncFlareBtn();
+  console.log("%c[dev] resetMyFlare: localStorage cleared", "color:#ff9e3d");
+  return "ok";
+};
+
 // ───────────── BOOT ─────────────
 (async function boot() {
   buildMessages();
@@ -2562,6 +3747,55 @@ window.resetMyDot = function () {
   }
 
   renderHeardPanel();
+  syncFlareBtn();
+
+  // Fetch today's flares.
+  try {
+    const { data: flareRows, error: flareErr } = await sb
+      .from("flares")
+      .select("id, text, lat, lng, loc, continent, planter_id, planter_loc, created_at")
+      .gte("created_at", todayMidnightUTC())
+      .order("created_at", { ascending: true });
+    if (!flareErr && Array.isArray(flareRows)) {
+      for (const row of flareRows) {
+        const flare = rowToFlare(row);
+        flares.push(flare);
+        addFlareMarker(flare);
+      }
+      if (flares.length && !map.hasLayer(flareLayer)) flareLayer.addTo(map);
+    } else if (flareErr) {
+      console.warn("[supabase] flares fetch failed:", flareErr.message);
+    }
+  } catch (e) {
+    console.warn("[supabase] flares fetch threw:", e);
+  }
+
+  // Fetch today's flare responses and attach them to the in-memory flares.
+  if (flares.length > 0) {
+    try {
+      const { data: respRows, error: respErr } = await sb
+        .from("flare_responses")
+        .select("id, flare_id, responder_id, text, created_at")
+        .gte("created_at", todayMidnightUTC())
+        .order("created_at", { ascending: true });
+      if (!respErr && Array.isArray(respRows)) {
+        const flareById = new Map(flares.map(f => [f.id, f]));
+        for (const r of respRows) {
+          const f = flareById.get(r.flare_id);
+          if (!f) continue;
+          if (!f.responses) f.responses = [];
+          f.responses.push(r);
+        }
+        for (const f of flares) {
+          if ((f.responses || []).length > 0) refreshFlareMarkerStyle(f);
+        }
+      } else if (respErr) {
+        console.warn("[supabase] flare responses fetch failed:", respErr.message);
+      }
+    } catch (e) {
+      console.warn("[supabase] flare responses fetch threw:", e);
+    }
+  }
 
   // Warm the translation cache for the user's chosen language now that all
   // initial messages are loaded.
@@ -2605,6 +3839,41 @@ window.resetMyDot = function () {
         if (remote > (msg.view_count || 0)) msg.view_count = remote;
         if (row.continent && !msg.continent) msg.continent = row.continent;
         scheduleHeardPanelRender();
+      }
+    )
+    .subscribe();
+
+  // ── Realtime: flares + flare responses ──
+  // flares INSERT: new flares appear live on every map.
+  // flare_responses INSERT: each new reply pushes onto the flare's response
+  // list so the marker switches to .answered (if first reply) and any open
+  // popup re-renders to include the new response.
+  sb.channel("flares-realtime")
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "flares" },
+      (payload) => {
+        const row = payload.new;
+        if (!row || !row.id) return;
+        if (flareMarkers.has(row.id)) return;
+        const flare = rowToFlare(row);
+        flares.push(flare);
+        addFlareMarker(flare);
+        if (!map.hasLayer(flareLayer)) flareLayer.addTo(map);
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "INSERT", schema: "public", table: "flare_responses" },
+      (payload) => {
+        const row = payload.new;
+        if (!row || !row.id) return;
+        const f = flares.find(f => f.id === row.flare_id);
+        if (!f) return;
+        if (!f.responses) f.responses = [];
+        if (f.responses.some(r => r.id === row.id)) return;
+        f.responses.push(row);
+        refreshFlareMarkerStyle(f);
       }
     )
     .subscribe();
