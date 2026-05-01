@@ -1980,7 +1980,16 @@ async function submit() {
   // row to skip it).
   const { data, error } = await sb
     .from("messages")
-    .insert({ text, lat: ll.lat, lng: ll.lng, loc, mood: selectedMood, continent })
+    .insert({
+      text,
+      // ~110m precision — enough for the dot to land in the right area without
+      // storing precise GPS in the database.
+      lat: Math.round(ll.lat * 1000) / 1000,
+      lng: Math.round(ll.lng * 1000) / 1000,
+      loc,
+      mood: selectedMood,
+      continent
+    })
     .select()
     .single();
 
