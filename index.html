@@ -12,18 +12,19 @@
 <style>
   *, *::before, *::after { box-sizing: border-box; }
   html, body {
-    margin: 0; padding: 0; height: 100%;
+    margin: 0; padding: 0;
+    height: 100%;        /* fallback for browsers without dvh support */
+    height: 100dvh;      /* tracks the visual viewport so iOS Safari's
+                            dynamic toolbar can't expose a gap below the map */
+    overflow: hidden;
     background: #0a1929;
     font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Roboto, Arial, sans-serif;
     color: #1a1a1a;
     -webkit-font-smoothing: antialiased;
   }
   #map {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    position: fixed;
+    inset: 0;
     background: #ffffff;
   }
 
@@ -84,6 +85,11 @@
     color: #999 !important;
     border: 1px solid #2f4153 !important;
     font-weight: 200 !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    line-height: 1 !important;
+    padding: 0 !important;
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
   .leaflet-control-zoom a:hover {
@@ -610,6 +616,223 @@
     border-color: rgba(255, 255, 255, 0.25);
     color: rgba(255, 255, 255, 0.95);
   }
+
+  /* ───────── Heard Around the World panel ───────── */
+  #hwPanel {
+    position: fixed;
+    bottom: 14px;
+    left: 14px;
+    z-index: 600;
+    width: 280px;
+    background: rgba(13, 24, 38, 0.72);
+    -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+    border: 0.5px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+  }
+  #hwPanel.empty { display: none; }
+  .hw-title {
+    padding: 9px 12px 7px;
+    font-size: 9.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  #hwRows { display: flex; flex-direction: column; }
+  .hw-row {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 7px 12px;
+    cursor: pointer;
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.04);
+    transition: background 0.12s;
+    min-width: 0;
+  }
+  .hw-row:last-child { border-bottom: none; }
+  .hw-row:hover { background: rgba(255, 255, 255, 0.05); }
+  .hw-row-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--c, #999);
+    box-shadow: 0 0 4px var(--c-soft, rgba(255, 255, 255, 0.2));
+  }
+  .hw-row-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .hw-row-cont {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
+  }
+  .hw-row-msg {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.85);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.35;
+  }
+
+  /* Mobile carousel — #hwToggle is the carousel card on mobile, hidden on desktop.
+     Top-aligned with the zoom +/− controls so the carousel and the zoom feel
+     like a paired top-left / top-right header layer over the map. The right
+     gutter (56px) reserves room for the zoom control (26px wide) + its 14px
+     right margin + a small visual gap, so they never overlap. */
+  #hwToggle {
+    position: fixed;
+    top: 74px;
+    left: 14px;
+    right: 14px;
+    z-index: 600;
+    display: none;
+    border-radius: 8px;
+    border: 0.5px solid rgba(255, 255, 255, 0.1);
+    background: rgba(13, 24, 38, 0.72);
+    -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+    padding: 10px 14px 9px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+    text-align: left;
+    color: rgba(255, 255, 255, 0.85);
+  }
+  #hwToggle.empty { display: none !important; }
+  .hw-car-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 7px;
+    margin-bottom: 8px;
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.08);
+  }
+  .hw-car-label {
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+    flex: 1;
+    min-width: 0;
+  }
+  .hw-car-collapse {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: -4px -4px -4px 0;
+    width: 24px;
+    height: 24px;
+    color: rgba(255, 255, 255, 0.45);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: color 0.15s;
+  }
+  .hw-car-collapse:hover { color: rgba(255, 255, 255, 0.85); }
+  .hw-car-collapse svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  #hwToggle.collapsed .hw-car-collapse svg { transform: rotate(180deg); }
+  .hw-car-body {
+    overflow: hidden;
+    max-height: 240px;
+    opacity: 1;
+    transition:
+      max-height 0.32s cubic-bezier(0.32, 0.72, 0, 1),
+      opacity 0.22s ease;
+  }
+  #hwToggle.collapsed .hw-car-body {
+    max-height: 0;
+    opacity: 0;
+  }
+  .hw-car-viewport {
+    overflow: hidden;
+    width: 100%;
+    cursor: pointer;
+    touch-action: pan-y;
+  }
+  .hw-car-track {
+    display: flex;
+    transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform;
+  }
+  .hw-car-slide {
+    flex: 0 0 100%;
+    min-width: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+  }
+  .hw-car-color {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 5px;
+    background: var(--c, #999);
+    box-shadow: 0 0 5px var(--c-soft, rgba(255, 255, 255, 0.2));
+  }
+  .hw-car-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .hw-car-cont {
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.5);
+  }
+  .hw-car-msg {
+    font-size: 13px;
+    line-height: 1.35;
+    color: rgba(255, 255, 255, 0.92);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .hw-car-pages {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-top: 9px;
+  }
+  .hw-car-page {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.22);
+    transition: background 0.2s, transform 0.2s;
+    cursor: pointer;
+  }
+  .hw-car-page.active {
+    background: rgba(255, 255, 255, 0.75);
+    transform: scale(1.15);
+  }
+  .hw-car-pages.single { display: none; }
+
+  @media (max-width: 639px) {
+    #hwPanel { display: none !important; }
+    #hwToggle { display: block; }
+    .leaflet-control-zoom { display: none !important; }
+  }
 </style>
 </head>
 <body>
@@ -636,6 +859,29 @@
 
 <button id="dropBtn" type="button" aria-label="leave a message">+</button>
 <div id="dropPrompt" aria-hidden="true">say something to the world</div>
+
+<div id="hwPanel" class="empty" aria-label="heard around the world">
+  <div class="hw-title">
+    <span>heard around the world</span>
+  </div>
+  <div id="hwRows"></div>
+</div>
+<div id="hwToggle" class="empty" role="region" aria-label="heard around the world">
+  <div class="hw-car-header">
+    <div class="hw-car-label">heard around the world</div>
+    <button class="hw-car-collapse" id="hwCarCollapse" type="button" aria-label="collapse content" aria-expanded="true">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 10 L8 6 L12 10"/>
+      </svg>
+    </button>
+  </div>
+  <div class="hw-car-body">
+    <div class="hw-car-viewport" id="hwCarViewport">
+      <div class="hw-car-track" id="hwCarTrack"></div>
+    </div>
+    <div class="hw-car-pages" id="hwCarPages"></div>
+  </div>
+</div>
 
 
 <div id="langOnboard" role="dialog" aria-modal="true" aria-labelledby="langOnboardTitle">
@@ -689,7 +935,9 @@ function rowToMsg(row, mineIds) {
     lng: row.lng,
     loc: row.loc || "",
     mood: row.mood,
-    mine: mineIds.has(row.id)
+    mine: mineIds.has(row.id),
+    view_count: row.view_count || 0,
+    continent: row.continent || continentFromLatLng(row.lat, row.lng)
   };
 }
 
@@ -1117,6 +1365,33 @@ function escapeHtml(s) {
   }[c]));
 }
 
+// ───────────── CONTINENT (coordinate bbox cascade) ─────────────
+// Approximate, not a GIS lookup. Order matters: more-specific carve-outs
+// (Middle East as Asia, Pacific island sweep) come before broader fallbacks.
+// Used both on insert and as a client-side fallback when the DB row is
+// missing the continent column (older rows, or pre-migration).
+function continentFromLatLng(lat, lng) {
+  const w = ((lng + 540) % 360) - 180;
+  if (lat < -60) return "Antarctica";
+  // Oceania: Australia/NZ, Pacific east of dateline, plus PNG/Solomons strip
+  if (lat <= 0 && lat >= -50 && (w >= 110 || w <= -150)) return "Oceania";
+  if (lat <= 12 && lat >= -10 && w >= 130 && w <= 175) return "Oceania";
+  // South America
+  if (lat <= 13 && lat >= -56 && w >= -82 && w <= -34) return "South America";
+  // North America (incl. Mexico, Caribbean, Greenland, Hawaii)
+  if (lat >= 13 && w >= -170 && w <= -50) return "North America";
+  if (lat >= 7 && lat < 13 && w >= -85 && w <= -77) return "North America"; // Panama
+  // Europe (rough — west of the Urals; northern Russia carved out)
+  if (lat >= 36 && lat <= 72 && w >= -25 && w <= 45) return "Europe";
+  if (lat >= 60 && lat <= 72 && w >= 45 && w <= 65) return "Europe";
+  // Middle East counted as Asia (split off Africa before the Africa box)
+  if (lat >= 12 && lat <= 42 && w >= 33 && w <= 65) return "Asia";
+  // Africa (Egypt etc. inside this; ME already filtered out above)
+  if (lat >= -35 && lat <= 37 && w >= -27 && w <= 52) return "Africa";
+  // Everything else: Asia
+  return "Asia";
+}
+
 // ───────────── MAP ─────────────
 // Vertical lock at near-poles, horizontal effectively unbounded so wrap still works
 const VERT_BOUND = 85.05;
@@ -1261,11 +1536,28 @@ function addDotMarker(msg) {
       opacity: 1,
       className: "dot-tooltip"
     });
+
+    // Desktop hover-as-read: many short messages fit entirely in the hover
+    // tooltip, so a click never happens and view_count under-counts. Treat a
+    // 2-second sustained hover as a read. Resets if the cursor leaves before
+    // the threshold; only fires once per hover (mouseover→mouseout cycle).
+    let dwellTimer = null;
+    m.on("mouseover", () => {
+      if (dwellTimer) return;
+      dwellTimer = setTimeout(() => {
+        dwellTimer = null;
+        incrementViewCount(msg.id);
+      }, 2000);
+    });
+    m.on("mouseout", () => {
+      if (dwellTimer) { clearTimeout(dwellTimer); dwellTimer = null; }
+    });
   }
 
   m.on("popupopen", () => {
     const el = m.getElement();
     if (el) { const d = el.querySelector(".dot"); if (d) d.classList.add("expanded"); }
+    incrementViewCount(msg.id);
     // Defer the scrollHeight read (forces layout) and clampable wiring out of the
     // click frame so tap → popup feels instant, then we set up clamping next tick.
     requestAnimationFrame(() => {
@@ -1345,6 +1637,198 @@ function rebuildDots() {
   dotLayer.clearLayers();
   dotMarkers.clear();
   for (const m of messages) addDotMarker(m);
+}
+
+// ───────────── HEARD AROUND THE WORLD ─────────────
+// Top-viewed dot per continent today. Up to 6 rows. Sorted by view count desc.
+// Hidden entirely when there are no messages today (radically-honest mode —
+// no seeded/fake placeholder rows).
+const HW_MAX_ROWS = 6;
+let hwRenderTimer = null;
+function scheduleHeardPanelRender() {
+  if (hwRenderTimer) return;
+  hwRenderTimer = setTimeout(() => {
+    hwRenderTimer = null;
+    renderHeardPanel();
+  }, 80);
+}
+
+function renderHeardPanel() {
+  const panel = document.getElementById("hwPanel");
+  const toggle = document.getElementById("hwToggle");
+  const rowsEl = document.getElementById("hwRows");
+  if (!panel || !rowsEl) return;
+
+  const byContinent = new Map();
+  for (const msg of messages) {
+    if (!msg.text) continue;
+    const c = msg.continent || continentFromLatLng(msg.lat, msg.lng);
+    const top = byContinent.get(c);
+    if (!top || (msg.view_count || 0) > (top.view_count || 0)) {
+      byContinent.set(c, msg);
+    }
+  }
+
+  const tops = [...byContinent.values()].sort((a, b) => {
+    const av = a.view_count || 0;
+    const bv = b.view_count || 0;
+    if (bv !== av) return bv - av;
+    return (a.continent || "").localeCompare(b.continent || "");
+  }).slice(0, HW_MAX_ROWS);
+
+  if (tops.length === 0) {
+    panel.classList.add("empty");
+    if (toggle) toggle.classList.add("empty");
+    rowsEl.innerHTML = "";
+    return;
+  }
+  panel.classList.remove("empty");
+  if (toggle) toggle.classList.remove("empty");
+
+  // Diff would be nicer; for 6 rows max, full re-render is fine.
+  rowsEl.innerHTML = "";
+  for (const msg of tops) {
+    const mood = MOOD_BY_ID[msg.mood];
+    const color = mood?.color || "#999";
+    const soft = rgba(color, 0.45);
+    const row = document.createElement("div");
+    row.className = "hw-row";
+    row.innerHTML =
+      `<span class="hw-row-dot" style="--c:${color}; --c-soft:${soft};"></span>` +
+      `<div class="hw-row-body">` +
+        `<div class="hw-row-cont">${escapeHtml(msg.continent || "")}</div>` +
+        `<div class="hw-row-msg">${escapeHtml(firstLine(msg.text || ""))}</div>` +
+      `</div>`;
+    row.addEventListener("click", () => focusDot(msg));
+    rowsEl.appendChild(row);
+  }
+
+  // Mobile carousel — same `tops` data, presented one-at-a-time.
+  renderCarousel(tops);
+}
+
+// ───────── MOBILE CAROUSEL ─────────
+// One-at-a-time view of the same `tops` set the desktop panel uses. Auto-
+// advances every 4s, swipeable, and tapping a slide flies to that dot.
+const CAROUSEL_INTERVAL_MS = 4000;
+const CAROUSEL_SWIPE_THRESHOLD_PX = 50;
+const CAROUSEL_RESUME_DELAY_MS = 5000;
+let carEntries = [];
+let carIndex = 0;
+let carCurrentId = null;
+let carTimer = null;
+let carResumeTimer = null;
+
+function renderCarousel(entries) {
+  const track = document.getElementById("hwCarTrack");
+  const pages = document.getElementById("hwCarPages");
+  if (!track || !pages) return;
+
+  carEntries = entries;
+
+  // Try to keep the user on the same message across re-renders so a view-count
+  // shuffle doesn't yank them mid-read.
+  if (carCurrentId) {
+    const idx = entries.findIndex(m => m.id === carCurrentId);
+    carIndex = idx >= 0 ? idx : 0;
+  } else {
+    carIndex = 0;
+  }
+  carCurrentId = entries[carIndex]?.id || null;
+
+  track.innerHTML = "";
+  for (const msg of entries) {
+    const mood = MOOD_BY_ID[msg.mood];
+    const color = mood?.color || "#999";
+    const soft = rgba(color, 0.45);
+    const slide = document.createElement("div");
+    slide.className = "hw-car-slide";
+    slide.innerHTML =
+      `<span class="hw-car-color" style="--c:${color}; --c-soft:${soft};"></span>` +
+      `<div class="hw-car-text">` +
+        `<div class="hw-car-cont">${escapeHtml(msg.continent || "")}</div>` +
+        `<div class="hw-car-msg">${escapeHtml(msg.text || "")}</div>` +
+      `</div>`;
+    slide.addEventListener("click", () => focusDot(msg));
+    track.appendChild(slide);
+  }
+
+  pages.innerHTML = "";
+  pages.classList.toggle("single", entries.length <= 1);
+  for (let i = 0; i < entries.length; i++) {
+    const p = document.createElement("span");
+    p.className = "hw-car-page" + (i === carIndex ? " active" : "");
+    p.addEventListener("click", (e) => {
+      e.stopPropagation();
+      goToSlide(i);
+      pauseAutoAdvance();
+    });
+    pages.appendChild(p);
+  }
+
+  goToSlide(carIndex, false);
+  startAutoAdvance();
+}
+
+function goToSlide(idx, animate = true) {
+  if (carEntries.length === 0) return;
+  const n = carEntries.length;
+  carIndex = ((idx % n) + n) % n;
+  carCurrentId = carEntries[carIndex]?.id || null;
+  const track = document.getElementById("hwCarTrack");
+  const pages = document.getElementById("hwCarPages");
+  if (!track) return;
+  if (!animate) {
+    const prev = track.style.transition;
+    track.style.transition = "none";
+    track.style.transform = `translateX(-${carIndex * 100}%)`;
+    void track.offsetWidth;
+    track.style.transition = prev;
+  } else {
+    track.style.transform = `translateX(-${carIndex * 100}%)`;
+  }
+  if (pages) {
+    [...pages.children].forEach((p, i) => p.classList.toggle("active", i === carIndex));
+  }
+}
+
+function startAutoAdvance() {
+  stopAutoAdvance();
+  if (carEntries.length <= 1) return;
+  carTimer = setInterval(() => goToSlide(carIndex + 1), CAROUSEL_INTERVAL_MS);
+}
+function stopAutoAdvance() {
+  if (carTimer) { clearInterval(carTimer); carTimer = null; }
+}
+function pauseAutoAdvance() {
+  stopAutoAdvance();
+  if (carResumeTimer) clearTimeout(carResumeTimer);
+  carResumeTimer = setTimeout(startAutoAdvance, CAROUSEL_RESUME_DELAY_MS);
+}
+
+function focusDot(msg) {
+  const marker = dotMarkers.get(msg.id);
+  if (!marker) return;
+  const targetZoom = Math.max(map.getZoom(), 5);
+  map.flyTo([msg.lat, msg.lng], targetZoom, { duration: 0.8 });
+  // Open the popup once the flyTo settles. setTimeout matches the duration above.
+  setTimeout(() => marker.openPopup(), 850);
+}
+
+// Optimistic local bump + atomic DB increment via the `increment_message_view_count`
+// RPC. Race-safe under concurrent views because the SQL function does
+// `view_count = view_count + 1` server-side. Realtime UPDATE event will echo back
+// and we take max(local, remote) to avoid going backwards.
+async function incrementViewCount(msgId) {
+  const msg = messages.find(m => m.id === msgId);
+  if (!msg) return;
+  msg.view_count = (msg.view_count || 0) + 1;
+  scheduleHeardPanelRender();
+  try {
+    await sb.rpc("increment_message_view_count", { msg_id: msgId });
+  } catch (e) {
+    console.warn("[supabase] view increment failed:", e);
+  }
 }
 
 const SILHOUETTE_STYLE = {
@@ -1484,6 +1968,7 @@ async function submit() {
 
   const ll = pendingLatLng;
   const loc = nearestCity(ll.lat, ll.lng);
+  const continent = continentFromLatLng(ll.lat, ll.lng);
 
   // Lock the send button while the network call is in flight so a double-tap
   // can't create two rows.
@@ -1495,7 +1980,7 @@ async function submit() {
   // row to skip it).
   const { data, error } = await sb
     .from("messages")
-    .insert({ text, lat: ll.lat, lng: ll.lng, loc, mood: selectedMood })
+    .insert({ text, lat: ll.lat, lng: ll.lng, loc, mood: selectedMood, continent })
     .select()
     .single();
 
@@ -1512,7 +1997,9 @@ async function submit() {
     lng: data.lng,
     loc: data.loc || loc,
     mood: data.mood,
-    mine: true
+    mine: true,
+    view_count: data.view_count || 0,
+    continent: data.continent || continent
   };
 
   // Persist user-only messages (localStorage stays as the client-side
@@ -1535,6 +2022,7 @@ async function submit() {
   if (m && map.hasLayer(dotLayer)) m.openPopup();
   hideHint();
   syncDropPrompt();
+  scheduleHeardPanelRender();
 }
 
 // ───────────── LANGUAGE / TRANSLATION ─────────────
@@ -1928,9 +2416,93 @@ window.resetMyDot = function () {
   hint.classList.add("gone");
   dropBtn.disabled = false;
   syncDropPrompt();
+  scheduleHeardPanelRender();
   console.log("%c[dev] resetMyDot: localStorage cleared, ready for a new drop", "color:#888");
   return "ok";
 };
+
+// ───────────── HEARD CAROUSEL — collapse toggle ─────────────
+(function wireCarouselCollapse() {
+  const card = document.getElementById("hwToggle");
+  const btn = document.getElementById("hwCarCollapse");
+  if (!card || !btn) return;
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const collapsed = card.classList.toggle("collapsed");
+    btn.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    btn.setAttribute("aria-label", collapsed ? "expand content" : "collapse content");
+    // No point auto-advancing while the body is hidden; resume on expand.
+    if (collapsed) stopAutoAdvance();
+    else startAutoAdvance();
+  });
+})();
+
+// ───────────── HEARD CAROUSEL — swipe + tap wiring ─────────────
+// Handles touch swipe between slides. Click-to-fly is wired per-slide in
+// renderCarousel(). preventDefault during a horizontal touchmove is what
+// suppresses the synthetic click after a real swipe.
+(function wireCarousel() {
+  const viewport = document.getElementById("hwCarViewport");
+  const track = document.getElementById("hwCarTrack");
+  if (!viewport || !track) return;
+
+  let startX = 0, startY = 0;
+  let dragging = false;
+  let isHorizontal = null;
+  let dragDelta = 0;
+  let suppressNextClick = false;
+
+  viewport.addEventListener("touchstart", (e) => {
+    if (carEntries.length <= 1) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    dragging = true;
+    isHorizontal = null;
+    dragDelta = 0;
+    pauseAutoAdvance();
+  }, { passive: true });
+
+  viewport.addEventListener("touchmove", (e) => {
+    if (!dragging) return;
+    const dx = e.touches[0].clientX - startX;
+    const dy = e.touches[0].clientY - startY;
+    if (isHorizontal === null) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        isHorizontal = Math.abs(dx) > Math.abs(dy);
+      }
+    }
+    if (isHorizontal) {
+      e.preventDefault();
+      dragDelta = dx;
+      const w = viewport.clientWidth || 1;
+      track.style.transition = "none";
+      track.style.transform = `translateX(${(-carIndex * 100) + (dx / w) * 100}%)`;
+    }
+  }, { passive: false });
+
+  viewport.addEventListener("touchend", () => {
+    if (!dragging) return;
+    dragging = false;
+    track.style.transition = "";
+    if (isHorizontal && Math.abs(dragDelta) > CAROUSEL_SWIPE_THRESHOLD_PX) {
+      goToSlide(dragDelta < 0 ? carIndex + 1 : carIndex - 1);
+      suppressNextClick = true;
+    } else {
+      goToSlide(carIndex);
+    }
+    isHorizontal = null;
+    pauseAutoAdvance();
+  });
+
+  // Belt-and-suspenders: a real swipe should never count as a tap-to-fly.
+  viewport.addEventListener("click", (e) => {
+    if (suppressNextClick) {
+      e.stopPropagation();
+      e.preventDefault();
+      suppressNextClick = false;
+    }
+  }, true);
+})();
 
 // ───────────── BOOT ─────────────
 (async function boot() {
@@ -1958,7 +2530,7 @@ window.resetMyDot = function () {
   try {
     const { data, error } = await sb
       .from("messages")
-      .select("id, text, lat, lng, loc, mood, created_at")
+      .select("id, text, lat, lng, loc, mood, created_at, view_count, continent")
       .gte("created_at", todayMidnightUTC())
       .order("created_at", { ascending: true });
 
@@ -1980,12 +2552,16 @@ window.resetMyDot = function () {
     console.warn("[supabase] initial fetch threw:", e);
   }
 
+  renderHeardPanel();
+
   // Warm the translation cache for the user's chosen language now that all
   // initial messages are loaded.
   pretranslateAll(getCurrentLang());
 
-  // ── Realtime: subscribe to new inserts ──
-  // Anyone in the world drops a dot, this fires on every connected client.
+  // ── Realtime: subscribe to inserts AND view-count updates ──
+  // INSERT: new dots from anyone in the world appear live on the map and panel.
+  // UPDATE: view_count bumps from the increment RPC echo back so the panel
+  // re-ranks in near-realtime as people open popups elsewhere.
   sb.channel("messages-realtime")
     .on(
       "postgres_changes",
@@ -2000,9 +2576,26 @@ window.resetMyDot = function () {
         messages.push(msg);
         addDotMarker(msg);
         updateLayers();
+        scheduleHeardPanelRender();
         // Warm the cache for this single new message in the current language.
         const lang = getCurrentLang();
         if (lang && lang !== "off" && msg.text) translate(msg.text, lang);
+      }
+    )
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "messages" },
+      (payload) => {
+        const row = payload.new;
+        if (!row || !row.id) return;
+        const msg = messages.find(m => m.id === row.id);
+        if (!msg) return;
+        // Take max so an in-flight optimistic local bump isn't reversed by an
+        // earlier-state UPDATE event arriving after we've already incremented.
+        const remote = row.view_count || 0;
+        if (remote > (msg.view_count || 0)) msg.view_count = remote;
+        if (row.continent && !msg.continent) msg.continent = row.continent;
+        scheduleHeardPanelRender();
       }
     )
     .subscribe();
