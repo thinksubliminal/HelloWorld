@@ -624,6 +624,15 @@
     fill: #ff9e3d;
     filter: drop-shadow(0 0 5px rgba(255, 158, 61, 0.55));
   }
+  /* Same four-pointed sparkle as the flare icon, neutral white — used by
+     "THE SPIRIT" section so it visually rhymes with FLARES without being
+     mistaken for one. */
+  .help-icon-spirit {
+    width: 13px; height: 13px;
+    flex-shrink: 0;
+    fill: rgba(255, 255, 255, 0.85);
+    filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.35));
+  }
   .help-footer {
     margin-top: 6px;
     padding-top: 14px;
@@ -646,6 +655,25 @@
     transition: opacity 0.15s;
   }
   .help-coffee:hover { opacity: 0.7; }
+  /* Tiny legal links at the very bottom — Terms · Privacy · Contact.
+     Same hairline divider above as .help-footer / .help-coffee for
+     consistent rhythm down the modal. */
+  .help-legal {
+    display: block;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 0.5px solid rgba(255, 255, 255, 0.08);
+    font-size: 10.5px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.25);
+  }
+  .help-legal a {
+    color: rgba(255, 255, 255, 0.45);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .help-legal a:hover { color: rgba(255, 255, 255, 0.85); }
+  .help-legal-sep { margin: 0 8px; }
 
   #langPanel {
     position: fixed;
@@ -1604,8 +1632,20 @@
       </div>
       <div class="help-section-body">Aim one anywhere on the map. Only people physically in that continent can respond. One flare per day.</div>
     </div>
+    <div class="help-section">
+      <div class="help-section-header">
+        <svg class="help-icon-spirit" viewBox="0 0 24 24" aria-hidden="true">
+          <polygon points="12,1 13.5,10.5 23,12 13.5,13.5 12,23 10.5,13.5 1,12 10.5,10.5"/>
+        </svg>
+        <span>The Spirit</span>
+      </div>
+      <div class="help-section-body">The world is reading. Be kind. No hate, no doxxing, no spam. Anything that breaks the spirit of this place will come down.</div>
+    </div>
     <div class="help-footer">Everything resets at midnight UTC.</div>
     <a class="help-coffee" href="https://ko-fi.com/thinksubliminal" target="_blank" rel="noopener">a coffee goes a long way ☕</a>
+    <div class="help-legal">
+      <a href="/terms/" target="_blank" rel="noopener">Terms</a><span class="help-legal-sep">·</span><a href="/privacy/" target="_blank" rel="noopener">Privacy</a><span class="help-legal-sep">·</span><a href="/contact/" target="_blank" rel="noopener">Contact</a>
+    </div>
   </div>
 </div>
 
