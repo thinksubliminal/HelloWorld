@@ -76,21 +76,28 @@
     color: #aaa;
   }
   .leaflet-control-attribution a { color: #888; }
+  /* Match the same frosted glass system as #topNav, #hwPanel, #bottomActions:
+     the wrapper carries the background + border + radius; the inner +/−
+     buttons are transparent and just paint their masked glyph + a hover tint.
+     `overflow: hidden` clips the inner buttons to the wrapper's rounded
+     corners so the whole group reads as one container. */
   .leaflet-control-zoom {
-    border: none !important;
+    border: 0.5px solid rgba(255, 255, 255, 0.08) !important;
     box-shadow: none !important;
-    background: transparent !important;
+    background: rgba(5, 12, 22, 0.6) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+            backdrop-filter: blur(12px) !important;
+    border-radius: 8px !important;
+    overflow: hidden !important;
   }
   .leaflet-top.leaflet-right .leaflet-control-zoom {
     margin-top: 64px;
     margin-right: 14px;
   }
   .leaflet-control-zoom a {
-    background: rgba(13, 24, 38, 0.92) !important;
+    background: transparent !important;
     color: rgba(255, 255, 255, 0.75) !important;
-    border: 0.5px solid rgba(255, 255, 255, 0.12) !important;
-    -webkit-backdrop-filter: blur(12px);
-            backdrop-filter: blur(12px);
+    border: none !important;
     /* Hide the default +/− text glyphs — we paint them as SVG masks below
        so they're guaranteed pixel-centered regardless of font metrics. */
     font-size: 0 !important;
@@ -98,12 +105,11 @@
     align-items: center !important;
     justify-content: center !important;
     padding: 0 !important;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    transition: background 0.15s, color 0.15s;
   }
   .leaflet-control-zoom a:hover {
-    background: rgba(20, 35, 55, 0.92) !important;
+    background: rgba(255, 255, 255, 0.06) !important;
     color: rgba(255, 255, 255, 0.95) !important;
-    border-color: rgba(255, 255, 255, 0.18) !important;
   }
   .leaflet-control-zoom a::before {
     content: '';
@@ -127,12 +133,14 @@
             mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='4' y='11' width='16' height='2' rx='1'/></svg>");
   }
   .leaflet-control-zoom-in {
-    border-radius: 8px 8px 0 0 !important;
+    border-radius: 0 !important;
     border-bottom: none !important;
   }
   .leaflet-control-zoom-out {
-    border-radius: 0 0 8px 8px !important;
-    border-top: 0.5px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 0 !important;
+    /* Thin divider between + and − — same hairline as other inter-section
+       lines in the app. */
+    border-top: 0.5px solid rgba(255, 255, 255, 0.08) !important;
   }
   .leaflet-control-zoom a.leaflet-disabled {
     opacity: 0.4;
