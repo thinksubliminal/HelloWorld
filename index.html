@@ -195,6 +195,24 @@
   .dot.preview { opacity: 0.55; }
   .dot.preview::after { animation: none; border-color: transparent; }
 
+  /* Data-dot stub: the visible rendering moved to the dot-canvas overlay,
+     but the marker stays as an invisible click target so all of Leaflet's
+     popup, tooltip, hover-as-read, and interactive bindings keep working
+     natively. The 11×11 box, cursor, and pointer-events still apply. */
+  .dot.dot-stub {
+    background: transparent;
+    box-shadow: none;
+    animation: none;
+  }
+  .dot.dot-stub::after { content: none; }
+  .dot.dot-stub.mine { box-shadow: none; }
+  /* Dot canvas overlay sits above the country pane and below markers, and
+     never captures clicks (those land on the underlying markers). */
+  .dot-canvas {
+    pointer-events: none;
+    image-rendering: -webkit-optimize-contrast;
+  }
+
   @keyframes pulse {
     0%   { transform: scale(0.55); opacity: 0.55; }
     80%  { opacity: 0; }
@@ -249,17 +267,12 @@
     word-wrap: break-word;
     overflow-wrap: break-word;
     white-space: pre-wrap;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
   }
+  /* .clampable / .expanded classes are now no-ops (the popupopen handler
+     still toggles them but truncation is gone, so they have no visible
+     effect). Kept the rules around as dead code so the JS click toggle
+     doesn't error if anything else queries them. */
   .msg-text.clampable { cursor: pointer; }
-  .msg-text.expanded {
-    -webkit-line-clamp: unset;
-    display: block;
-    overflow: visible;
-  }
   .msg-meta {
     margin-top: 12px;
     display: flex;
@@ -830,6 +843,115 @@
     background: rgba(255, 255, 255, 0.06);
   }
   #flareBtn svg { width: 22px; height: 22px; display: block; }
+
+  /* "Our mood" button — same 58×58 circle pattern as dropBtn/flareBtn but
+     neutral-tinted so the trio reads as primary / primary / tertiary. */
+  #moodBtn {
+    width: 58px; height: 58px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.85);
+    cursor: pointer;
+    transition: transform 0.15s ease, background 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  #moodBtn:hover {
+    transform: scale(1.07);
+    background: rgba(255, 255, 255, 0.12);
+  }
+  #moodBtn:active { transform: scale(0.96); }
+  #moodBtn svg { width: 20px; height: 20px; display: block; }
+
+  /* "Our mood" modal — same blurred-overlay + frosted-card pattern as
+     #helpModal (the Rules modal), duplicated under its own selectors so the
+     Rules modal can stay untouched. Open/close via .open class with the
+     same opacity + transform timing. */
+  #moodModal {
+    position: fixed; inset: 0;
+    background: rgba(10, 18, 30, 0.55);
+    -webkit-backdrop-filter: blur(3px);
+            backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+    padding: 20px;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.22s ease, visibility 0.22s ease;
+  }
+  #moodModal.open { visibility: visible; opacity: 1; }
+  .mood-card {
+    background: rgba(255, 255, 255, 0.07);
+    -webkit-backdrop-filter: blur(16px);
+            backdrop-filter: blur(16px);
+    border: 0.5px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 24px 26px 20px;
+    width: min(360px, 100%);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    transform: translateY(10px);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  #moodModal.open .mood-card { transform: translateY(0); }
+  .mood-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.4);
+    margin-bottom: 16px;
+  }
+  /* One row per mood: colored dot · name · percentage. The first row has
+     no top border so the eyebrow→list gap reads cleanly; subsequent rows
+     get a hairline divider. */
+  .mood-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 0;
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.85);
+    border-top: 0.5px solid rgba(255, 255, 255, 0.06);
+  }
+  .mood-row:first-child { border-top: none; padding-top: 4px; }
+  .mood-row:last-child  { padding-bottom: 4px; }
+  .mood-row-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--c, #999);
+    box-shadow: 0 0 6px var(--c-soft, rgba(255, 255, 255, 0.2));
+  }
+  .mood-row-name {
+    /* No flex grow — sits immediately before the percentage on each line. */
+  }
+  .mood-row-pct {
+    color: rgba(255, 255, 255, 0.55);
+    font-variant-numeric: tabular-nums;
+    margin-left: 6px;
+  }
+  .mood-row-emoji {
+    margin-left: auto;
+    font-size: 16px;
+    line-height: 1;
+    /* Restore upright rendering — letter-spacing on the row would otherwise
+       push the emoji's variation selector subtly. */
+    letter-spacing: 0;
+  }
+  .mood-empty {
+    text-align: center;
+    font-size: 12.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+    padding: 8px 0 4px;
+  }
   #flareBtn.active {
     background: rgba(255, 158, 61, 0.25);
     border-color: #ff9e3d;
@@ -945,6 +1067,19 @@
     }
   }
 
+  /* Flare-stub: visible rendering moved to flare-canvas overlay; this is the
+     invisible click target. 21×21 box (the original visible flare size) so
+     desktop hit area matches what users had before the migration. */
+  .flare.flare-stub {
+    filter: none;
+    animation: none;
+  }
+  .flare.flare-stub svg { display: none; }
+  .flare-canvas {
+    pointer-events: none;
+    image-rendering: -webkit-optimize-contrast;
+  }
+
   /* Flare hover preview (desktop only) */
   .leaflet-tooltip.flare-tooltip {
     background: rgba(40, 22, 8, 0.92);
@@ -1017,10 +1152,35 @@
     color: rgba(255, 255, 255, 0.4);
     margin-bottom: 10px;
   }
+  /* Wrapper hosts the bottom-fade ::after; the inner list is what actually
+     scrolls. Keeping the fade on a non-scrolling parent dodges browser
+     quirks where absolutely-positioned children inside `overflow: auto`
+     can drift with scroll. */
+  .flare-popup-response-list-wrap {
+    position: relative;
+  }
+  .flare-popup-response-list-wrap::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 26px;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.42));
+    /* Hidden by default. JS toggles `.show-fade` only when the response list
+       actually overflows AND the user hasn't reached the bottom yet. */
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  .flare-popup-response-list-wrap.show-fade::after { opacity: 1; }
   .flare-popup-response-list {
     display: flex;
     flex-direction: column;
     gap: 10px;
+    max-height: 60vh;
+    overflow-y: auto;
+    /* Reserve a bit of space at the bottom so the last response isn't
+       visually swallowed by the fade. */
+    padding-bottom: 6px;
   }
   .flare-popup-response {
     color: rgba(255, 255, 255, 0.88);
@@ -1029,6 +1189,9 @@
     word-wrap: break-word;
     padding-left: 10px;
     border-left: 1.5px solid rgba(255, 158, 61, 0.32);
+    /* Never truncate — full text always. */
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
   }
   .flare-popup-locked {
     margin-top: 14px;
@@ -1567,6 +1730,14 @@
         <polygon points="12,1 13.5,10.5 23,12 13.5,13.5 12,23 10.5,13.5 1,12 10.5,10.5" fill="currentColor"/>
       </svg>
     </button>
+    <button id="moodBtn" type="button" aria-label="our mood today">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M3 12h18"/>
+        <path d="M12 3a14 14 0 0 1 0 18"/>
+        <path d="M12 3a14 14 0 0 0 0 18"/>
+      </svg>
+    </button>
   </div>
 </div>
 
@@ -1609,6 +1780,13 @@
       <button class="btn" id="geoRetry" type="button" hidden>try again</button>
       <button class="btn" id="geoDismiss" type="button">ok</button>
     </div>
+  </div>
+</div>
+
+<div id="moodModal" role="dialog" aria-modal="true" aria-labelledby="moodModalTitle">
+  <div class="mood-card">
+    <div id="moodModalTitle" class="mood-eyebrow">the world feels...</div>
+    <div id="moodModalBody"></div>
   </div>
 </div>
 
@@ -1703,7 +1881,10 @@ function rowToMsg(row, mineIds) {
     mood: row.mood,
     mine: mineIds.has(row.id),
     view_count: row.view_count || 0,
-    continent: row.continent || continentFromLatLng(row.lat, row.lng)
+    continent: row.continent || continentFromLatLng(row.lat, row.lng),
+    // Used by the dot canvas to bucket into recency tiers (newer dots show
+    // at any zoom; older ones only when zoomed in).
+    created_at: row.created_at || null
   };
 }
 
@@ -1719,15 +1900,15 @@ function todayMidnightUTC() {
 
 // ───────────── MOODS ─────────────
 const MOODS = [
-  { id: "joyful",   name: "joyful",   color: "#F5B842" },
-  { id: "calm",     name: "calm",     color: "#5BBED4" },
-  { id: "anxious",  name: "anxious",  color: "#E88A3D" },
-  { id: "angry",    name: "angry",    color: "#D85050" },
-  { id: "sad",      name: "sad",      color: "#7866D9" },
-  { id: "hopeful",  name: "hopeful",  color: "#4DB58E" },
-  { id: "curious",  name: "curious",  color: "#B576E0" },
-  { id: "lonely",   name: "lonely",   color: "#7D8FA8" },
-  { id: "grateful", name: "grateful", color: "#ED7AA0" }
+  { id: "joyful",   name: "joyful",   color: "#F5B842", emoji: "😊" },
+  { id: "calm",     name: "calm",     color: "#5BBED4", emoji: "😌" },
+  { id: "anxious",  name: "anxious",  color: "#E88A3D", emoji: "😰" },
+  { id: "angry",    name: "angry",    color: "#D85050", emoji: "😤" },
+  { id: "sad",      name: "sad",      color: "#7866D9", emoji: "😢" },
+  { id: "hopeful",  name: "hopeful",  color: "#4DB58E", emoji: "🌟" },
+  { id: "curious",  name: "curious",  color: "#B576E0", emoji: "🔍" },
+  { id: "lonely",   name: "lonely",   color: "#7D8FA8", emoji: "🌙" },
+  { id: "grateful", name: "grateful", color: "#ED7AA0", emoji: "🙏" }
 ];
 const MOOD_BY_ID = Object.fromEntries(MOODS.map(m => [m.id, m]));
 
@@ -2187,6 +2368,97 @@ function escapeHtml(s) {
   }[c]));
 }
 
+// ───────────── PROFANITY FILTER ─────────────
+// Light-touch sanitization on the WRITE path only. Targets slurs and hate
+// terms — racial/ethnic, homophobic, transphobic, dehumanizing — across the
+// languages most active on the map (en/es/pt/ru). Ordinary profanity ("shit",
+// "damn", "fuck") is intentionally NOT in this list — dropadot is about
+// authentic human expression and emotional swearing is part of that.
+//
+// Detection runs on a leetspeak-normalized copy of the input (3→e, 0→o, 1→i,
+// @→a, $→s, !→i — all 1-to-1 character swaps so indices align with the
+// original) and matches with Unicode-aware word boundaries (works for Latin
+// AND Cyrillic). When a slur is matched, ONLY that word is replaced with
+// "***" — the surrounding message survives untouched.
+//
+// To extend: add entries (lowercase, base form) below. An optional trailing
+// "s" is matched automatically for English plurals. The allowlist exists for
+// benign words that legitimately contain a slur substring at a word boundary
+// (Niger the country, Nigerian, etc.) — extend if a false positive surfaces.
+
+const PROFANITY_LIST = [
+  // English — racial / ethnic
+  "nigger", "nigga", "chink", "gook", "kike", "spic", "wetback",
+  "beaner", "raghead", "towelhead", "sandnigger", "coon",
+  // English — homophobic / transphobic
+  "faggot", "fag", "tranny", "shemale", "dyke",
+  // English — dehumanizing / ableist slur
+  "retard", "retarded",
+  // Spanish — slurs (homophobic, anti-Latino-from-other-Latinos, anti-Indigenous)
+  "maricon", "maricón", "marica", "puto", "sudaca", "panchito",
+  // Portuguese
+  "viado", "veado", "bicha",
+  // Russian (Cyrillic + romanized variants of the worst entries)
+  "жид", "жиды", "пидор", "пидорас", "пидарас", "хач", "хачи",
+  "zhid", "pidor", "pidoras", "khach"
+];
+
+// Words that legitimately contain a slur substring and must NEVER be filtered,
+// even if a regex would otherwise match. Lowercased, exact word match.
+const PROFANITY_ALLOWLIST = new Set([
+  "niger", "nigerian", "nigerien", "nigeria",
+  "scunthorpe", "classic", "passage",
+  "faggio"  // legit Italian word / surname
+]);
+
+// 1-to-1 leetspeak swaps applied during detection only. Keeping it short on
+// purpose — the goal is catching casual evasion, not fighting an arms race.
+const _LEET_SWAP = { "3": "e", "0": "o", "1": "i", "4": "a", "@": "a", "$": "s", "!": "i" };
+
+// Pre-build one Unicode-aware regex per slur entry, with optional trailing "s"
+// for plural forms. Word boundaries via lookarounds against any letter/digit/
+// underscore so Cyrillic and accented Latin work correctly (\b alone doesn't).
+const _PROFANITY_REGEXES = PROFANITY_LIST.map(w => {
+  const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?<![\\p{L}\\p{N}_])${escaped}s?(?![\\p{L}\\p{N}_])`, "giu");
+});
+
+function sanitizeProfanity(text) {
+  if (!text || typeof text !== "string") return text;
+  // Build a lowercased + leet-normalized copy. Char count stays identical to
+  // the original since every leet swap is single-char-to-single-char, so any
+  // match index from the normalized form maps 1:1 back into the original.
+  let lowered = "";
+  for (const ch of text.toLowerCase()) lowered += _LEET_SWAP[ch] || ch;
+
+  // Collect [start, end) ranges to redact, then apply once at the end so we
+  // don't shift indices mid-loop.
+  const ranges = [];
+  for (const re of _PROFANITY_REGEXES) {
+    re.lastIndex = 0;
+    let m;
+    while ((m = re.exec(lowered)) !== null) {
+      const matched = m[0];
+      // Allowlist override: even if the regex fired, skip benign words.
+      if (PROFANITY_ALLOWLIST.has(matched)) continue;
+      ranges.push([m.index, m.index + matched.length]);
+    }
+  }
+  if (ranges.length === 0) return text;
+
+  // Sort by start, redact original by index. Overlaps just collapse together.
+  ranges.sort((a, b) => a[0] - b[0]);
+  let out = "";
+  let cursor = 0;
+  for (const [s, e] of ranges) {
+    if (s < cursor) continue; // overlap with prior — already covered
+    out += text.slice(cursor, s) + "***";
+    cursor = e;
+  }
+  out += text.slice(cursor);
+  return out;
+}
+
 // ───────────── CONTINENT / OCEAN (coordinate bbox cascade) ─────────────
 // Approximate, not a GIS lookup. Order matters: more-specific carve-outs
 // (Middle East as Asia, Pacific island sweep) come before broader fallbacks.
@@ -2287,7 +2559,11 @@ const map = L.map("map", {
   maxZoom: 9,
   zoomControl: false,
   attributionControl: false,
-  zoomSnap: 0.25,
+  // zoomSnap: 0 lets the map sit at any fractional zoom — required for
+  // fluid trackpad / pinch zoom. zoomDelta: 0.25 keeps keyboard/+− buttons
+  // moving in nice quarter-level steps.
+  zoomSnap: 0,
+  zoomDelta: 0.25,
   maxBounds: [[-VERT_BOUND, -HORIZ_BOUND], [VERT_BOUND, HORIZ_BOUND]],
   maxBoundsViscosity: 1.0,
   inertia: true,
@@ -2353,20 +2629,31 @@ map.scrollWheelZoom.disable();
   let target = null;
   let frame = null;
   let lastEvent = null;
+  // Sensitivity factors: pinch (ctrlKey) is finer-grained than a wheel tick,
+  // so it needs a smaller divisor to feel responsive. Numbers tuned for a
+  // Mac trackpad — ~60 deltaY units to advance one zoom level matches
+  // Leaflet's own wheelPxPerZoomLevel default; pinch is bumped up.
+  const PINCH_DIVISOR = 60;
+  const WHEEL_DIVISOR = 150;
   map.getContainer().addEventListener("wheel", function (e) {
     e.preventDefault();
     // Trackpad pinch fires wheel with ctrlKey=true — keep that natural (pinch out = zoom in)
     const sign = e.ctrlKey ? -1 : 1;
-    accum += sign * e.deltaY;
+    const divisor = e.ctrlKey ? PINCH_DIVISOR : WHEEL_DIVISOR;
+    accum += (sign * e.deltaY) / divisor;
     lastEvent = e;
     if (frame) return;
     frame = requestAnimationFrame(() => {
       // Defer the forced-layout read (mouseEventToContainerPoint -> getBoundingClientRect)
       // until rAF so we do it at most once per frame, not once per wheel tick.
       target = map.mouseEventToContainerPoint(lastEvent);
-      const change = accum / 100;
-      const next = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), map.getZoom() + change));
-      map.setZoomAround(target, next, { animate: true, duration: 0.3, easeLinearity: 0.05 });
+      const next = Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), map.getZoom() + accum));
+      // animate: false means each frame applies the accumulated wheel delta
+      // immediately. With wheel events firing many per second and rAF clamping
+      // to 60Hz, the cumulative effect IS the smooth zoom — and since the map
+      // never sits in a 300ms tween, the dot/flare canvases redraw at the live
+      // fractional zoom every frame instead of waiting for it to settle.
+      map.setZoomAround(target, next, { animate: false });
       accum = 0;
       frame = null;
     });
@@ -2382,11 +2669,486 @@ function buildMessages() {
   messages = loadUserMessages();
 }
 
+// ───────────── DOT CANVAS ─────────────
+// Renders all dots in a single requestAnimationFrame loop, replacing the
+// per-dot CSS animations that didn't scale past a few hundred markers.
+// Hit detection stays on the underlying Leaflet markers (whose icons are
+// now empty .dot.dot-stub click targets) — popups, tooltips, hover-as-read,
+// and every other Leaflet binding keep working natively. This trades a
+// little of the "pure canvas" purity for full interaction parity, which
+// is the right call for a tap-heavy app.
+//
+// State per dot: lat, lng, color, soft (semi-transparent variant), mine
+// flag, createdAt (recency tier), pulsePhase (random offset so we don't
+// get a synchronized heartbeat across the map), opacity (lerps to a
+// target driven by recency + zoom), hoverScale + expandedScale (lerp to
+// targets driven by Leaflet hover/popup events).
+//
+// Recency tiers (per spec, with 300ms opacity fades when crossing):
+//   <2h:  always visible
+//   2-6h: visible at zoom >= 4
+//   6h+:  visible at zoom >= 6
+const DotCanvas = L.Layer.extend({
+  options: { paneZ: 380 },  // above country pane (350), below markerPane (600)
+
+  initialize: function (opts) {
+    L.Util.setOptions(this, opts);
+    this._dots = new Map();
+    this._hovered = new Set();
+    this._expanded = new Set();
+    this._raf = null;
+    this._lastFrame = 0;
+    this._reset = this._reset.bind(this);
+    this._move = this._move.bind(this);
+    this._animateZoom = this._animateZoom.bind(this);
+  },
+
+  onAdd: function (map) {
+    this._map = map;
+    let pane = map.getPane("dotCanvasPane");
+    if (!pane) {
+      pane = map.createPane("dotCanvasPane");
+      pane.style.zIndex = String(this.options.paneZ);
+      pane.style.pointerEvents = "none";
+    }
+    const c = L.DomUtil.create("canvas", "leaflet-zoom-animated dot-canvas", pane);
+    c.style.position = "absolute";
+    c.style.left = "0";
+    c.style.top = "0";
+    c.style.willChange = "transform";
+    this._canvas = c;
+    this._ctx = c.getContext("2d");
+    map.on("viewreset resize", this._reset);
+    map.on("move zoom", this._move);
+    map.on("zoomanim", this._animateZoom);
+    this._reset();
+    this._startLoop();
+  },
+
+  onRemove: function (map) {
+    if (this._raf) cancelAnimationFrame(this._raf);
+    if (this._canvas) L.DomUtil.remove(this._canvas);
+    map.off("viewreset resize", this._reset);
+    map.off("move zoom", this._move);
+    map.off("zoomanim", this._animateZoom);
+  },
+
+  // Public: add or refresh a dot's state from a `messages`-array entry.
+  setDot: function (msg) {
+    if (!msg || msg.lat == null || msg.lng == null) return;
+    const mood = MOOD_BY_ID[msg.mood];
+    const color = mood ? mood.color : "#1a1a1a";
+    const soft = rgba(color, 0.45);
+    const createdAt = msg.created_at ? new Date(msg.created_at).getTime() : Date.now();
+    const existing = this._dots.get(msg.id);
+    if (existing) {
+      existing.lat = msg.lat;
+      existing.lng = msg.lng;
+      existing.color = color;
+      existing.soft = soft;
+      existing.mine = !!msg.mine;
+      existing.createdAt = createdAt;
+    } else {
+      this._dots.set(msg.id, {
+        id: msg.id,
+        lat: msg.lat,
+        lng: msg.lng,
+        color,
+        soft,
+        mine: !!msg.mine,
+        createdAt,
+        pulsePhase: Math.random() * 3000,
+        opacity: 0,           // fades up from 0 on first appearance
+        hoverScale: 1,
+        expandedScale: 1
+      });
+    }
+  },
+
+  removeDot: function (id) {
+    this._dots.delete(id);
+    this._hovered.delete(id);
+    this._expanded.delete(id);
+  },
+
+  setHovered: function (id, on) {
+    if (!this._dots.has(id)) return;
+    if (on) this._hovered.add(id);
+    else this._hovered.delete(id);
+  },
+
+  setExpanded: function (id, on) {
+    if (!this._dots.has(id)) return;
+    if (on) this._expanded.add(id);
+    else this._expanded.delete(id);
+  },
+
+  // ── internals ──
+  _reset: function () {
+    if (!this._map || !this._canvas) return;
+    const size = this._map.getSize();
+    const dpr = window.devicePixelRatio || 1;
+    this._canvas.width = Math.max(1, size.x * dpr);
+    this._canvas.height = Math.max(1, size.y * dpr);
+    this._canvas.style.width = size.x + "px";
+    this._canvas.style.height = size.y + "px";
+    this._ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this._move();
+  },
+
+  _move: function () {
+    if (!this._map || !this._canvas) return;
+    // Anchor the canvas top-left to the current map view by translating it
+    // back into pane-local coordinates. The pane handles the zoom transform
+    // automatically; this keeps the canvas covering the viewport.
+    const tl = this._map.containerPointToLayerPoint([0, 0]);
+    L.DomUtil.setPosition(this._canvas, tl);
+  },
+
+  _animateZoom: function (e) {
+    // Match Leaflet's smooth zoom: while the tile pane scales/translates to
+    // the target zoom, transform the canvas the same way so dots stay
+    // visually anchored. After zoomend, _move resets translation and the
+    // rAF loop redraws at the new zoom.
+    const map = this._map;
+    const scale = map.getZoomScale(e.zoom, map.getZoom());
+    const offset = map._latLngBoundsToNewLayerBounds(map.getBounds(), e.zoom, e.center).min;
+    L.DomUtil.setTransform(this._canvas, offset, scale);
+  },
+
+  _startLoop: function () {
+    const tick = (now) => {
+      this._render(now);
+      this._raf = requestAnimationFrame(tick);
+    };
+    this._raf = requestAnimationFrame(tick);
+  },
+
+  _render: function (now) {
+    const ctx = this._ctx;
+    const map = this._map;
+    if (!ctx || !map) return;
+    const size = map.getSize();
+    ctx.clearRect(0, 0, size.x, size.y);
+
+    const dt = this._lastFrame ? Math.min(50, now - this._lastFrame) : 16;
+    this._lastFrame = now;
+    // 300ms exponential approach (~63% of the way per 100ms frame budget).
+    const lerp = 1 - Math.exp(-dt / 100);
+
+    const cycleMs = 3000;
+    const baseR = 5.5;
+
+    for (const d of this._dots.values()) {
+      // All dots fully visible (recency tier system removed). Opacity still
+      // lerps so brand-new dots fade in smoothly from 0 → 1.
+      d.opacity += (1 - d.opacity) * lerp;
+      if (d.opacity < 0.01) continue;
+
+      // Hover + popup-open scale targets. Expanded (popup) trumps hover.
+      const expanded = this._expanded.has(d.id);
+      const hovered = this._hovered.has(d.id);
+      const targetScale = expanded ? 1.7 : (hovered ? 1.45 : 1);
+      d.hoverScale += (targetScale - d.hoverScale) * lerp * 1.5;
+
+      const pt = map.latLngToContainerPoint([d.lat, d.lng]);
+      // Skip dots well off-screen (small perf cushion for large maps).
+      if (pt.x < -40 || pt.y < -40 || pt.x > size.x + 40 || pt.y > size.y + 40) continue;
+
+      // Pulse cycle: matches the original CSS ease-out, scale 0.55 → 2.4
+      // over 3s, fading alpha to 0 by t=0.8.
+      const phase = ((now + d.pulsePhase) % cycleMs) / cycleMs;
+      const eased = 1 - Math.pow(1 - phase, 3);
+      const pulseScale = 0.55 + (2.4 - 0.55) * eased;
+      const pulseAlpha = phase < 0.8 ? 0.55 * (1 - phase / 0.8) : 0;
+
+      this._drawDot(ctx, pt.x, pt.y, d, baseR, pulseScale, pulseAlpha);
+    }
+  },
+
+  _drawDot: function (ctx, x, y, d, r, pulseScale, pulseAlpha) {
+    const s = d.hoverScale;
+    const a = d.opacity;
+
+    // 1) Pulse ring (drawn first; sits behind the dot in source order).
+    if (pulseAlpha > 0.01) {
+      ctx.save();
+      ctx.globalAlpha = a * pulseAlpha;
+      ctx.strokeStyle = d.soft;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(x, y, (r + 3) * pulseScale, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 2) "Mine" ring (concentric strokes). Drawn before the fill so the
+    //    fill sits on top.
+    ctx.save();
+    ctx.globalAlpha = a;
+    if (d.mine) {
+      ctx.strokeStyle = "rgba(0, 0, 0, 0.18)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(x, y, r * s + 3.5, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(x, y, r * s + 1.25, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // 3) Glow + dot fill.
+    ctx.shadowColor = d.soft;
+    ctx.shadowBlur = d.mine ? 12 : 6;
+    ctx.fillStyle = d.color;
+    ctx.beginPath();
+    ctx.arc(x, y, r * s, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+});
+const dotCanvas = new DotCanvas();
+
+// ───────────── FLARE CANVAS ─────────────
+// Same hybrid model as DotCanvas — Leaflet markers stay as invisible click
+// targets, canvas does all the visual rendering. Flares pulse on a 1.6s
+// cycle (faster + more "urgent" than dots), have an answered/unanswered
+// state visible via dim/scale, and a "mine" white outline + halo.
+//
+// Pulse cycle for unanswered (matches the original CSS keyframes):
+//   scale 1 → 1.12 → 1, smooth (cosine ease-in-out)
+//   non-mine: amber glow blur 5px → 14px → 5px, alpha 0.55 → 0.95 → 0.55
+//   mine: amber under-glow 8 → 22 + white halo 5 → 12, alpha bands match
+//
+// Answered: scale 0.88, opacity 0.55, no pulse, dim amber glow.
+const FlareCanvas = L.Layer.extend({
+  options: { paneZ: 390 },  // above dotCanvasPane (380), below markerPane (600)
+
+  initialize: function (opts) {
+    L.Util.setOptions(this, opts);
+    this._flares = new Map();
+    this._hovered = new Set();
+    this._expanded = new Set();
+    this._raf = null;
+    this._lastFrame = 0;
+    this._reset = this._reset.bind(this);
+    this._move = this._move.bind(this);
+    this._animateZoom = this._animateZoom.bind(this);
+  },
+
+  onAdd: function (map) {
+    this._map = map;
+    let pane = map.getPane("flareCanvasPane");
+    if (!pane) {
+      pane = map.createPane("flareCanvasPane");
+      pane.style.zIndex = String(this.options.paneZ);
+      pane.style.pointerEvents = "none";
+    }
+    const c = L.DomUtil.create("canvas", "leaflet-zoom-animated flare-canvas", pane);
+    c.style.position = "absolute";
+    c.style.left = "0";
+    c.style.top = "0";
+    c.style.willChange = "transform";
+    this._canvas = c;
+    this._ctx = c.getContext("2d");
+    map.on("viewreset resize", this._reset);
+    map.on("move zoom", this._move);
+    map.on("zoomanim", this._animateZoom);
+    this._reset();
+    this._startLoop();
+  },
+
+  onRemove: function (map) {
+    if (this._raf) cancelAnimationFrame(this._raf);
+    if (this._canvas) L.DomUtil.remove(this._canvas);
+    map.off("viewreset resize", this._reset);
+    map.off("move zoom", this._move);
+    map.off("zoomanim", this._animateZoom);
+  },
+
+  setFlare: function (flare) {
+    if (!flare || flare.lat == null || flare.lng == null) return;
+    const answered = (flare.responses || []).length > 0;
+    const existing = this._flares.get(flare.id);
+    if (existing) {
+      existing.lat = flare.lat;
+      existing.lng = flare.lng;
+      existing.mine = !!flare.mine;
+      existing.answered = answered;
+    } else {
+      this._flares.set(flare.id, {
+        id: flare.id,
+        lat: flare.lat,
+        lng: flare.lng,
+        mine: !!flare.mine,
+        answered,
+        pulsePhase: Math.random() * 1600,
+        opacity: 0,           // fades up from 0 on first appearance
+        hoverScale: 1
+      });
+    }
+  },
+
+  removeFlare: function (id) {
+    this._flares.delete(id);
+    this._hovered.delete(id);
+    this._expanded.delete(id);
+  },
+
+  setHovered: function (id, on) {
+    if (!this._flares.has(id)) return;
+    if (on) this._hovered.add(id);
+    else this._hovered.delete(id);
+  },
+
+  setExpanded: function (id, on) {
+    if (!this._flares.has(id)) return;
+    if (on) this._expanded.add(id);
+    else this._expanded.delete(id);
+  },
+
+  // ── internals ──
+  _reset: function () {
+    if (!this._map || !this._canvas) return;
+    const size = this._map.getSize();
+    const dpr = window.devicePixelRatio || 1;
+    this._canvas.width = Math.max(1, size.x * dpr);
+    this._canvas.height = Math.max(1, size.y * dpr);
+    this._canvas.style.width = size.x + "px";
+    this._canvas.style.height = size.y + "px";
+    this._ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    this._move();
+  },
+
+  _move: function () {
+    if (!this._map || !this._canvas) return;
+    const tl = this._map.containerPointToLayerPoint([0, 0]);
+    L.DomUtil.setPosition(this._canvas, tl);
+  },
+
+  _animateZoom: function (e) {
+    const map = this._map;
+    const scale = map.getZoomScale(e.zoom, map.getZoom());
+    const offset = map._latLngBoundsToNewLayerBounds(map.getBounds(), e.zoom, e.center).min;
+    L.DomUtil.setTransform(this._canvas, offset, scale);
+  },
+
+  _startLoop: function () {
+    const tick = (now) => {
+      this._render(now);
+      this._raf = requestAnimationFrame(tick);
+    };
+    this._raf = requestAnimationFrame(tick);
+  },
+
+  _render: function (now) {
+    const ctx = this._ctx;
+    const map = this._map;
+    if (!ctx || !map) return;
+    const size = map.getSize();
+    ctx.clearRect(0, 0, size.x, size.y);
+
+    const dt = this._lastFrame ? Math.min(50, now - this._lastFrame) : 16;
+    this._lastFrame = now;
+    const lerp = 1 - Math.exp(-dt / 100);
+
+    const cycleMs = 1600;
+
+    for (const f of this._flares.values()) {
+      f.opacity += (1 - f.opacity) * lerp;
+      if (f.opacity < 0.01) continue;
+
+      const expanded = this._expanded.has(f.id);
+      const hovered = this._hovered.has(f.id);
+      const targetHover = expanded ? 1.45 : (hovered ? 1.18 : 1);
+      f.hoverScale += (targetHover - f.hoverScale) * lerp * 1.5;
+
+      const pt = map.latLngToContainerPoint([f.lat, f.lng]);
+      if (pt.x < -50 || pt.y < -50 || pt.x > size.x + 50 || pt.y > size.y + 50) continue;
+
+      // Pulse — only for unanswered.
+      let pulseAmp = 0;
+      let pulseScale = 1;
+      if (!f.answered) {
+        const t = ((now + f.pulsePhase) % cycleMs) / cycleMs;
+        pulseAmp = 0.5 - 0.5 * Math.cos(t * Math.PI * 2); // 0 → 1 → 0 smooth
+        pulseScale = 1 + 0.12 * pulseAmp;
+      }
+
+      const baseScale = f.answered ? 0.88 : 1;
+      const totalScale = baseScale * pulseScale * f.hoverScale;
+      const baseAlpha = f.answered ? 0.55 : 1;
+      const finalOpacity = f.opacity * baseAlpha;
+
+      this._drawFlare(ctx, pt.x, pt.y, f, totalScale, finalOpacity, pulseAmp);
+    }
+  },
+
+  _drawFlare: function (ctx, x, y, f, scale, alpha, pulseAmp) {
+    const size = 21 * scale;
+    const u = size / 24;
+
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.lineJoin = "round";
+
+    // Build the four-pointed star path (mirrors the original SVG polygon
+    // points exactly, rescaled around (x, y)).
+    ctx.beginPath();
+    const pts = [
+      [12, 1], [13.5, 10.5], [23, 12], [13.5, 13.5],
+      [12, 23], [10.5, 13.5], [1, 12], [10.5, 10.5]
+    ];
+    for (let i = 0; i < pts.length; i++) {
+      const px = x + (pts[i][0] - 12) * u;
+      const py = y + (pts[i][1] - 12) * u;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+
+    if (f.mine) {
+      // 1) White stroke with amber outer-glow shadow → mine outline + amber halo
+      const amberBlur = f.answered ? 4 : (8 + 14 * pulseAmp);    // 8 → 22
+      const amberAlpha = f.answered ? 0.3 : (0.5 + 0.05 * pulseAmp); // 0.5 → 0.55
+      ctx.shadowColor = `rgba(255, 158, 61, ${amberAlpha})`;
+      ctx.shadowBlur = amberBlur;
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // 2) Amber fill with white inner-glow shadow → amber center + white halo.
+      //    Fill draws on top of the stroke's inner half (paint-order: stroke fill).
+      const whiteBlur = f.answered ? 4 : (5 + 7 * pulseAmp);     // 5 → 12
+      const whiteAlpha = f.answered ? 0.3 : (0.45 + 0.25 * pulseAmp); // 0.45 → 0.7
+      ctx.shadowColor = `rgba(255, 255, 255, ${whiteAlpha})`;
+      ctx.shadowBlur = whiteBlur;
+      ctx.fillStyle = "#ff9e3d";
+      ctx.fill();
+    } else {
+      // Non-mine: amber fill with amber glow.
+      const amberBlur = f.answered ? 3 : (5 + 9 * pulseAmp);     // 5 → 14
+      const amberAlpha = f.answered ? 0.3 : (0.55 + 0.4 * pulseAmp); // 0.55 → 0.95
+      ctx.shadowColor = `rgba(255, 158, 61, ${amberAlpha})`;
+      ctx.shadowBlur = amberBlur;
+      ctx.fillStyle = "#ff9e3d";
+      ctx.fill();
+    }
+
+    ctx.restore();
+  }
+});
+const flareCanvas = new FlareCanvas();
+
 // ───────────── RENDERING ─────────────
 function dotIconHtml(mood, mine) {
-  const color = MOOD_BY_ID[mood]?.color || "#1a1a1a";
-  const soft = rgba(color, 0.45);
-  return `<div class="dot${mine ? " mine" : ""}" style="--c:${color}; --c-soft:${soft};"></div>`;
+  // Visual rendering happens on the dot-canvas overlay. This stub keeps
+  // Leaflet's hit area + pointer-events plumbing intact (the .dot is what
+  // receives clicks/hovers on desktop) but draws nothing.
+  return `<div class="dot dot-stub${mine ? " mine" : ""}" aria-hidden="true"></div>`;
 }
 
 // Hover-preview tooltips only bind on real pointer devices. Touch screens fall
@@ -2432,6 +3194,7 @@ function addDotMarker(msg) {
     // the threshold; only fires once per hover (mouseover→mouseout cycle).
     let dwellTimer = null;
     m.on("mouseover", () => {
+      dotCanvas.setHovered(msg.id, true);
       if (dwellTimer) return;
       dwellTimer = setTimeout(() => {
         dwellTimer = null;
@@ -2439,13 +3202,20 @@ function addDotMarker(msg) {
       }, 2000);
     });
     m.on("mouseout", () => {
+      dotCanvas.setHovered(msg.id, false);
       if (dwellTimer) { clearTimeout(dwellTimer); dwellTimer = null; }
     });
+  } else {
+    // Touch devices: no tooltip, but still track hover for canvas scale
+    // (briefly highlights when tapped before the popup opens).
+    m.on("mouseover", () => dotCanvas.setHovered(msg.id, true));
+    m.on("mouseout", () => dotCanvas.setHovered(msg.id, false));
   }
 
   m.on("popupopen", () => {
     const el = m.getElement();
     if (el) { const d = el.querySelector(".dot"); if (d) d.classList.add("expanded"); }
+    dotCanvas.setExpanded(msg.id, true);
     incrementViewCount(msg.id);
     // Defer the scrollHeight read (forces layout) and clampable wiring out of the
     // click frame so tap → popup feels instant, then we set up clamping next tick.
@@ -2468,10 +3238,12 @@ function addDotMarker(msg) {
   m.on("popupclose", () => {
     const el = m.getElement();
     if (el) { const d = el.querySelector(".dot"); if (d) d.classList.remove("expanded"); }
+    dotCanvas.setExpanded(msg.id, false);
   });
 
   dotLayer.addLayer(m);
   dotMarkers.set(msg.id, m);
+  dotCanvas.setDot(msg);
 }
 
 function buildPopup(msg) {
@@ -2482,11 +3254,10 @@ function buildPopup(msg) {
   // If a translation for this message+lang is already resolved, paint it on
   // first render — no async replacement, no layout thrash on re-open.
   let displayText = msg.text;
+  let cached = null;
   if (target && target !== "off" && msg.text) {
-    const cached = getTranslatedNow(msg.text, target);
-    if (cached && normalizeForCompare(cached) !== normalizeForCompare(msg.text)) {
-      displayText = cached;
-    }
+    cached = getTranslatedNow(msg.text, target);
+    if (cached) displayText = cached;
   }
 
   wrap.innerHTML =
@@ -2498,13 +3269,15 @@ function buildPopup(msg) {
     `</div>`;
 
   // First-time path: kick off the fetch and replace the text when it resolves.
-  // If displayText is already the translation, we don't need to do anything.
-  if (target && target !== "off" && msg.text && displayText === msg.text) {
+  // No equality short-circuit — even if the translated string happens to match
+  // the original (Lingva auto-detect occasionally roundtrips slang/short text),
+  // we let the result through. The original stays only when the fetch yields
+  // null (network failure / both mirrors down).
+  if (target && target !== "off" && msg.text && !cached) {
     const textEl = wrap.querySelector(".msg-text");
     translate(msg.text, target).then((t) => {
-      if (!t) return;
+      if (!t || !t.trim()) return;
       if (!textEl.isConnected || getCurrentLang() !== target) return;
-      if (normalizeForCompare(t) === normalizeForCompare(msg.text)) return;
       if (textEl.textContent === t) return;
       textEl.textContent = t;
       requestAnimationFrame(() => {
@@ -2877,11 +3650,12 @@ async function submit() {
   // Write to Supabase. We let the database generate the UUID and return it so
   // the in-memory id matches the database id (important for realtime: the
   // INSERT event echoes back to this client and we need to recognize our own
-  // row to skip it).
+  // row to skip it). `sanitizeProfanity` silently redacts slurs only — the
+  // rest of the message survives untouched.
   const { data, error } = await sb
     .from("messages")
     .insert({
-      text,
+      text: sanitizeProfanity(text),
       // ~110m precision — enough for the dot to land in the right area without
       // storing precise GPS in the database.
       lat: Math.round(ll.lat * 1000) / 1000,
@@ -2908,7 +3682,8 @@ async function submit() {
     mood: data.mood,
     mine: true,
     view_count: data.view_count || 0,
-    continent: data.continent || continent
+    continent: data.continent || continent,
+    created_at: data.created_at || new Date().toISOString()
   };
 
   // Persist user-only messages (localStorage stays as the client-side
@@ -2977,8 +3752,25 @@ function setLang(code) {
   // currently-visible one.
   pretranslateAll(code);
 
-  // Re-translate the currently open popup (if any) on the spot, so the user
-  // sees the change immediately instead of having to close and re-open.
+  // Refresh any open flare popup so its question + responses re-render in
+  // the new language. setContent() rebuilds via buildFlarePopup() which
+  // reads the just-changed getCurrentLang() and kicks off translations.
+  // Done before the dot-popup early-return below so this works whether or
+  // not a dot popup is also open.
+  const openFlareMarker = [...flareMarkers.values()].find(fm => fm.isPopupOpen && fm.isPopupOpen());
+  if (openFlareMarker) {
+    const flare = flares.find(f => flareMarkers.get(f.id) === openFlareMarker);
+    if (flare) {
+      const fp = openFlareMarker.getPopup();
+      if (fp) {
+        fp.setContent(buildFlarePopup(flare));
+        if (fp.update) fp.update();
+      }
+    }
+  }
+
+  // Re-translate the currently open dot popup (if any) on the spot, so the
+  // user sees the change immediately instead of having to close and re-open.
   const openMarker = [...dotMarkers.values()].find(m => m.isPopupOpen && m.isPopupOpen());
   if (!openMarker) return;
   const msg = messages.find(m => dotMarkers.get(m.id) === openMarker);
@@ -3003,16 +3795,14 @@ function setLang(code) {
   }
 
   // Switching to a real language: paint cached translation if we have one,
-  // otherwise fetch and replace when it resolves.
+  // otherwise fetch and replace when it resolves. No equality short-circuit:
+  // any non-empty Lingva response wins so legitimate translations of slang /
+  // short text aren't suppressed when the engine roundtrips.
   const cached = getTranslatedNow(msg.text, code);
   const applyText = (t) => {
-    if (!t) return;
+    if (!t || !t.trim()) return;
     if (!textEl.isConnected || getCurrentLang() !== code) return;
-    if (normalizeForCompare(t) === normalizeForCompare(msg.text)) {
-      textEl.textContent = msg.text;
-    } else {
-      textEl.textContent = t;
-    }
+    textEl.textContent = t;
     requestAnimationFrame(() => {
       textEl.classList.remove("clampable", "expanded");
       if (textEl.scrollHeight > textEl.clientHeight + 1) {
@@ -3137,7 +3927,10 @@ async function fetchLingva(host, targetLang, text) {
     if (!r.ok) throw new Error("translate fetch failed: " + r.status);
     const data = await r.json();
     const t = data && data.translation;
-    return (typeof t === "string" && t.trim()) ? t : null;
+    if (typeof t !== "string" || !t.trim()) return null;
+    // Same write-side rule applies to translation results — a clean source
+    // shouldn't surface a slur via a quirky machine translation.
+    return sanitizeProfanity(t);
   } finally {
     clearTimeout(timer);
   }
@@ -3173,19 +3966,28 @@ function normalizeForCompare(s) {
   return (s || "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-// Warm the translation cache for every loaded message in the background, so
-// popups open already-translated instead of swapping in a few seconds later.
-// Concurrency is capped so we don't fire dozens of parallel requests at the
-// (already slow) Lingva mirrors.
+// Warm the translation cache for every loaded message + flare in the
+// background, so popups open already-translated instead of swapping in a
+// few seconds later. Concurrency is capped so we don't fire dozens of
+// parallel requests at the (already slow) Lingva mirrors.
 function pretranslateAll(lang) {
   if (!lang || lang === "off") return;
-  const items = messages.filter(m => m.text && !getTranslatedNow(m.text, lang));
+  const texts = [];
+  for (const m of messages) {
+    if (m.text && !getTranslatedNow(m.text, lang)) texts.push(m.text);
+  }
+  for (const f of flares) {
+    if (f.text && !getTranslatedNow(f.text, lang)) texts.push(f.text);
+    for (const r of (f.responses || [])) {
+      if (r.text && !getTranslatedNow(r.text, lang)) texts.push(r.text);
+    }
+  }
   let i = 0;
   const worker = async () => {
-    while (i < items.length) {
+    while (i < texts.length) {
       if (getCurrentLang() !== lang) return; // user switched mid-flight
-      const m = items[i++];
-      try { await translate(m.text, lang); } catch (_) {}
+      const t = texts[i++];
+      try { await translate(t, lang); } catch (_) {}
     }
   };
   for (let n = 0; n < 3; n++) worker();
@@ -3385,6 +4187,7 @@ window.resetMyDot = function () {
       dotLayer.removeLayer(marker);
       dotMarkers.delete(m.id);
     }
+    dotCanvas.removeDot(m.id);
   }
   messages = messages.filter(m => !m.mine);
   clearPreview();
@@ -3396,6 +4199,69 @@ window.resetMyDot = function () {
   console.log("%c[dev] resetMyDot: localStorage cleared, ready for a new drop", "color:#888");
   return "ok";
 };
+
+// ───────────── OUR MOOD ─────────────
+// Tap the globe button → modal listing today's moods by percentage,
+// computed from the local `messages` array (already kept current via
+// realtime, so no Supabase round-trip needed). Stays open until the
+// user dismisses by tapping the backdrop, hitting Esc, or tapping the
+// globe button again. Shares the same overlay/card pattern as the
+// Rules modal.
+(function wireMoodBtn() {
+  const btn = document.getElementById("moodBtn");
+  const modal = document.getElementById("moodModal");
+  const body = document.getElementById("moodModalBody");
+  if (!btn || !modal || !body) return;
+
+  function buildBody() {
+    const counts = new Map();
+    for (const m of messages) {
+      if (!m.mood) continue;
+      counts.set(m.mood, (counts.get(m.mood) || 0) + 1);
+    }
+    const total = [...counts.values()].reduce((a, b) => a + b, 0);
+    if (total === 0) {
+      return `<div class="mood-empty">the world hasn't spoken yet</div>`;
+    }
+    const sorted = [...counts.entries()]
+      .map(([id, n]) => ({ id, n, pct: Math.round((n / total) * 100) }))
+      .filter(x => x.n > 0)
+      .sort((a, b) => b.pct - a.pct || b.n - a.n);
+    return sorted.map(x => {
+      const mood = MOOD_BY_ID[x.id];
+      const color = mood?.color || "#999";
+      const soft = rgba(color, 0.45);
+      const name = mood?.name || x.id;
+      const emoji = mood?.emoji || "";
+      return `<div class="mood-row">` +
+               `<span class="mood-row-dot" style="--c:${color}; --c-soft:${soft};"></span>` +
+               `<span class="mood-row-name">${escapeHtml(name)}</span>` +
+               `<span class="mood-row-pct">${x.pct}%</span>` +
+               `<span class="mood-row-emoji" aria-hidden="true">${emoji}</span>` +
+             `</div>`;
+    }).join("");
+  }
+
+  function open() {
+    body.innerHTML = buildBody();
+    modal.classList.add("open");
+  }
+  function close() {
+    modal.classList.remove("open");
+  }
+
+  btn.addEventListener("click", () => {
+    if (modal.classList.contains("open")) close();
+    else open();
+  });
+  modal.addEventListener("click", (e) => {
+    // Only the backdrop closes; clicks on the card itself stay open.
+    if (e.target === modal) close();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && modal.classList.contains("open")) close();
+  });
+})();
 
 // ───────────── HELP MODAL ─────────────
 (function wireHelpModal() {
@@ -3565,16 +4431,11 @@ function rowToFlare(row) {
   };
 }
 
-function flareIconHtml(flare) {
-  const hasResponses = (flare.responses || []).length > 0;
-  const classes = [
-    "flare",
-    hasResponses ? "answered" : "unanswered",
-    flare.mine ? "mine" : ""
-  ].filter(Boolean).join(" ");
-  // Four-pointed glint star: long points top/right/bottom/left, narrow waist
-  // through the diagonal concave anchors at ±1.5 from the center.
-  return `<div class="${classes}"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><polygon points="12,1 13.5,10.5 23,12 13.5,13.5 12,23 10.5,13.5 1,12 10.5,10.5"/></svg></div>`;
+function flareIconHtml(/* flare */) {
+  // Visual rendering happens on the flare-canvas overlay. This stub keeps
+  // Leaflet's 21×21 hit area + pointer-events plumbing intact (the .flare
+  // is what receives clicks/hovers on desktop) but draws nothing.
+  return `<div class="flare flare-stub" aria-hidden="true"></div>`;
 }
 
 function addFlareMarker(flare) {
@@ -3602,31 +4463,34 @@ function addFlareMarker(flare) {
     });
   }
 
+  // Sync hover + popup state into the flare-canvas so it can render the
+  // hover scale / popup-expanded scale alongside the per-flare pulse.
+  m.on("mouseover", () => flareCanvas.setHovered(flare.id, true));
+  m.on("mouseout",  () => flareCanvas.setHovered(flare.id, false));
   m.on("popupopen", () => {
     const el = m.getElement();
     if (el) { const f = el.querySelector(".flare"); if (f) f.classList.add("expanded"); }
+    flareCanvas.setExpanded(flare.id, true);
   });
   m.on("popupclose", () => {
     const el = m.getElement();
     if (el) { const f = el.querySelector(".flare"); if (f) f.classList.remove("expanded"); }
+    flareCanvas.setExpanded(flare.id, false);
   });
 
   flareLayer.addLayer(m);
   flareMarkers.set(flare.id, m);
+  flareCanvas.setFlare(flare);
 }
 
-// Replace a marker's icon in place — used when a flare gets answered to swap
-// from .unanswered to .answered without recreating the popup binding.
+// Push a flare's updated state to the canvas (e.g., when it gets a new
+// response and should switch from unanswered → answered visuals). The
+// underlying Leaflet icon is now an invisible stub that doesn't change,
+// so we no longer rebuild it; canvas reads `answered`/`mine`/etc. directly.
 function refreshFlareMarkerStyle(flare) {
+  flareCanvas.setFlare(flare);
   const m = flareMarkers.get(flare.id);
   if (!m) return;
-  const newIcon = L.divIcon({
-    className: "flare-wrap",
-    html: flareIconHtml(flare),
-    iconSize: [37, 37],
-    iconAnchor: [18.5, 18.5]
-  });
-  m.setIcon(newIcon);
   // If the popup is currently open, refresh its content too so a viewer sees
   // the response appear without having to close + reopen.
   if (m.isPopupOpen && m.isPopupOpen()) {
@@ -3649,28 +4513,41 @@ function buildFlarePopup(flare) {
   const canRespond = sameContinent && !alreadyResponded;
   const isMine = flare.planter_id === PLANTER_ID;
 
+  // Translation state for this build. We paint cached translations (or the
+  // original) on first render, then async-replace each text element when
+  // the Lingva fetch resolves. Same pattern dot popups use.
+  const target = getCurrentLang();
+  const wantTranslate = target && target !== "off";
+  const optimistic = (text) => {
+    if (!wantTranslate || !text) return text || "";
+    return getTranslatedNow(text, target) || text;
+  };
+
   // Eyebrow shows the AIM location (city/country or named body of water for
   // ocean flares) instead of the bare continent — gives "flare · pacific ocean"
   // for water targets and "flare · tokyo, japan" for land targets.
   const eyebrowLoc = flare.loc || flare.continent || "";
   let html =
     `<div class="flare-popup-eyebrow">flare · ${escapeHtml(eyebrowLoc)}</div>` +
-    `<div class="flare-popup-q">${escapeHtml(flare.text)}</div>` +
+    `<div class="flare-popup-q">${escapeHtml(optimistic(flare.text))}</div>` +
     `<div class="flare-popup-meta">` +
       `<span>${isMine ? "your flare" : "from " + escapeHtml(flare.planter_loc || flare.continent || "")}</span>` +
     `</div>`;
 
   // Existing responses (can coexist with the respond UI — multiple answers
-  // accumulate over the day).
+  // accumulate over the day). The list scrolls inside its wrapper when there
+  // are many or very long responses; the wrapper gets a subtle bottom fade
+  // to hint at more content below.
   if (responses.length > 0) {
     html +=
       `<div class="flare-popup-divider"></div>` +
       `<div class="flare-popup-response-label">${responses.length} ${responses.length === 1 ? "response" : "responses"}</div>` +
-      `<div class="flare-popup-response-list">`;
+      `<div class="flare-popup-response-list-wrap">` +
+        `<div class="flare-popup-response-list">`;
     for (const r of responses) {
-      html += `<div class="flare-popup-response">${escapeHtml(r.text)}</div>`;
+      html += `<div class="flare-popup-response">${escapeHtml(optimistic(r.text))}</div>`;
     }
-    html += `</div>`;
+    html += `</div></div>`;
   }
 
   // Respond UI shows whenever the viewer is in the target continent and hasn't
@@ -3694,6 +4571,46 @@ function buildFlarePopup(flare) {
   }
 
   wrap.innerHTML = html;
+
+  // Bottom-fade visibility — only show when the list actually overflows AND
+  // the user hasn't scrolled to the bottom yet. Re-checked on every scroll
+  // and once after layout settles (popup is appended to DOM after this
+  // function returns, so an rAF lets us read scrollHeight/clientHeight from
+  // the live element).
+  const respWrap = wrap.querySelector(".flare-popup-response-list-wrap");
+  const respList = wrap.querySelector(".flare-popup-response-list");
+  if (respWrap && respList) {
+    const updateFade = () => {
+      const remaining = respList.scrollHeight - respList.clientHeight - respList.scrollTop;
+      respWrap.classList.toggle("show-fade", remaining > 4);
+    };
+    respList.addEventListener("scroll", updateFade);
+    requestAnimationFrame(updateFade);
+    // One more check after a beat — covers the case where async translations
+    // grow a response and tip the list into overflow after first paint.
+    setTimeout(updateFade, 350);
+  }
+
+  // Async-replace translation for the question + each response. Mirrors the
+  // dot popup pattern — original (or cached) painted on first render, real
+  // translation swaps in when Lingva resolves. No equality short-circuit:
+  // any non-empty result wins. If both mirrors fail, original stays.
+  if (wantTranslate) {
+    const replaceWhenReady = (el, text) => {
+      if (!el || !text) return;
+      // Cached already painted on first render; nothing to do.
+      if (getTranslatedNow(text, target)) return;
+      translate(text, target).then((t) => {
+        if (!t || !t.trim()) return;
+        if (!el.isConnected || getCurrentLang() !== target) return;
+        if (el.textContent === t) return;
+        el.textContent = t;
+      });
+    };
+    replaceWhenReady(wrap.querySelector(".flare-popup-q"), flare.text);
+    const respEls = wrap.querySelectorAll(".flare-popup-response");
+    responses.forEach((r, i) => replaceWhenReady(respEls[i], r.text));
+  }
 
   // Wire up the respond UI if it's present.
   const ta = wrap.querySelector("[data-flare-respond]");
@@ -3730,7 +4647,7 @@ async function respondToFlare(flareId, text, errEl) {
   try {
     const { data, error } = await sb
       .from("flare_responses")
-      .insert({ flare_id: flareId, responder_id: PLANTER_ID, text })
+      .insert({ flare_id: flareId, responder_id: PLANTER_ID, text: sanitizeProfanity(text) })
       .select()
       .single();
 
@@ -3837,7 +4754,7 @@ async function submitFlare() {
   const { data, error } = await sb
     .from("flares")
     .insert({
-      text,
+      text: sanitizeProfanity(text),
       // Flares store full precision — they're intentional placements where the
       // exact spot is the message. (Dots round to 3dp for privacy.)
       lat: ll.lat,
@@ -4109,6 +5026,7 @@ window.resetMyFlare = function () {
     const m = flareMarkers.get(f.id);
     if (m) flareLayer.removeLayer(m);
     flareMarkers.delete(f.id);
+    flareCanvas.removeFlare(f.id);
   }
   flares = flares.filter(f => !f.mine);
   syncFlareBtn();
@@ -4118,6 +5036,12 @@ window.resetMyFlare = function () {
 
 // ───────────── BOOT ─────────────
 (async function boot() {
+  // Canvas overlays for dots and flares — added before any addDotMarker /
+  // addFlareMarker call so their setDot()/setFlare() side-effects capture
+  // every item from the very start.
+  dotCanvas.addTo(map);
+  flareCanvas.addTo(map);
+
   buildMessages();
   rebuildDots();
   if (!map.hasLayer(dotLayer)) dotLayer.addTo(map);
@@ -4278,6 +5202,9 @@ window.resetMyFlare = function () {
         flares.push(flare);
         addFlareMarker(flare);
         if (!map.hasLayer(flareLayer)) flareLayer.addTo(map);
+        // Warm the cache for this flare's question in the current language.
+        const lang = getCurrentLang();
+        if (lang && lang !== "off" && flare.text) translate(flare.text, lang);
       }
     )
     .on(
@@ -4292,6 +5219,9 @@ window.resetMyFlare = function () {
         if (f.responses.some(r => r.id === row.id)) return;
         f.responses.push(row);
         refreshFlareMarkerStyle(f);
+        // Warm the cache for the new response in the current language.
+        const lang = getCurrentLang();
+        if (lang && lang !== "off" && row.text) translate(row.text, lang);
       }
     )
     .subscribe();
