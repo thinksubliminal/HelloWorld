@@ -461,13 +461,27 @@
     100%  { color: #F5B842; } /* back to joyful so the loop is seamless */
   }
 
+  /* Reset countdown — supporting context above the SAY SOMETHING label.
+     Smaller (~75% of the 10px label) and dimmer so the label below stays
+     the primary focus of the bottom cluster. */
   #resetTimer {
-    font-size: 11px;
-    color: rgba(255, 255, 255, 0.4);
+    font-size: 8px;
+    color: rgba(255, 255, 255, 0.5);
     pointer-events: none;
     letter-spacing: 0.14em;
     text-transform: uppercase;
     white-space: nowrap;
+    text-align: center;
+  }
+  /* Tight stack: countdown sits 5px above the label so they read as one
+     grouped unit; the rest of the bottom-zone gap (18px) still sits between
+     this cluster and the buttons below. */
+  .bottom-text-cluster {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    pointer-events: none;
   }
 
   #langBtn {
@@ -1499,7 +1513,6 @@
     <div id="title">Hello, World!</div>
   </div>
   <div class="nav-right">
-    <div id="resetTimer" aria-live="off"></div>
     <button id="helpBtn" type="button" aria-label="the rules">the rules</button>
     <button id="langBtn" type="button" aria-label="translation language" aria-haspopup="true" aria-expanded="false">
       <span class="nav-icon nav-icon-translate" aria-hidden="true"></span>
@@ -1512,9 +1525,12 @@
 <div id="flareAimLabel" aria-hidden="true"></div>
 
 <div id="bottomZone">
-  <div class="bottom-text-slot">
-    <div id="dropPrompt" aria-hidden="true">say something to the world</div>
-    <div id="hint" class="gone"></div>
+  <div class="bottom-text-cluster">
+    <div id="resetTimer" aria-live="off"></div>
+    <div class="bottom-text-slot">
+      <div id="dropPrompt" aria-hidden="true">say something to the world</div>
+      <div id="hint" class="gone"></div>
+    </div>
   </div>
   <div id="bottomActions">
     <button id="dropBtn" type="button" aria-label="leave a message"><span class="drop-dot" aria-hidden="true"></span></button>
