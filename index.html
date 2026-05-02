@@ -11,6 +11,11 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@800&display=swap">
 <style>
   *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    /* Shared "quiet UI line" — used by THE RULES button border (at rest)
+       and the HEARD AROUND THE WORLD title divider, so they stay in sync. */
+    --ui-line: rgba(255, 255, 255, 0.25);
+  }
   html, body {
     margin: 0; padding: 0;
     height: 100%;        /* fallback for browsers without dvh support */
@@ -43,11 +48,7 @@
     z-index: 700;
   }
   #topNav .nav-left { display: flex; align-items: center; }
-  #topNav .nav-right { display: flex; align-items: center; gap: 14px; }
-  /* Each icon button has 4px internal padding around its icon, so the visual
-     icon↔icon gap is gap + 4 + 4. Add a matching 4px right margin to the
-     reset timer so the visual letter↔icon gap equals icon↔icon. */
-  #topNav .nav-right #resetTimer { margin-right: 4px; }
+  #topNav .nav-right { display: flex; align-items: center; gap: 20px; }
 
   .leaflet-container { background: #0a1929 !important; font-family: inherit; outline: none; }
 
@@ -85,9 +86,11 @@
     margin-right: 14px;
   }
   .leaflet-control-zoom a {
-    background: rgba(13, 24, 38, 0.85) !important;
-    color: #999 !important;
-    border: 1px solid #2f4153 !important;
+    background: rgba(13, 24, 38, 0.92) !important;
+    color: rgba(255, 255, 255, 0.75) !important;
+    border: 0.5px solid rgba(255, 255, 255, 0.12) !important;
+    -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
     /* Hide the default +/− text glyphs — we paint them as SVG masks below
        so they're guaranteed pixel-centered regardless of font metrics. */
     font-size: 0 !important;
@@ -98,9 +101,9 @@
     transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
   .leaflet-control-zoom a:hover {
-    background: rgba(20, 35, 55, 0.95) !important;
-    color: #d8d8d8 !important;
-    border-color: #3d5168 !important;
+    background: rgba(20, 35, 55, 0.92) !important;
+    color: rgba(255, 255, 255, 0.95) !important;
+    border-color: rgba(255, 255, 255, 0.18) !important;
   }
   .leaflet-control-zoom a::before {
     content: '';
@@ -124,12 +127,12 @@
             mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='4' y='11' width='16' height='2' rx='1'/></svg>");
   }
   .leaflet-control-zoom-in {
-    border-radius: 4px 4px 0 0 !important;
+    border-radius: 8px 8px 0 0 !important;
     border-bottom: none !important;
   }
   .leaflet-control-zoom-out {
-    border-radius: 0 0 4px 4px !important;
-    border-top: 1px solid #1f2d3f !important;
+    border-radius: 0 0 8px 8px !important;
+    border-top: 0.5px solid rgba(255, 255, 255, 0.12) !important;
   }
   .leaflet-control-zoom a.leaflet-disabled {
     opacity: 0.4;
@@ -429,7 +432,7 @@
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
     font-size: 16px;
     font-weight: 800;
-    color: #d8d8d8;
+    color: #c0c0c0;
     letter-spacing: -0.01em;
   }
 
@@ -457,18 +460,6 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
     white-space: nowrap;
-    animation: moodCycle 24s linear infinite;
-    transition: color 1.6s ease;
-  }
-  /* Color shifts as midnight UTC approaches. The mood-cycle animation is
-     replaced with a static color so the urgency reads clearly. */
-  #resetTimer.warning {
-    animation: none;
-    color: #ff9e3d;
-  }
-  #resetTimer.urgent {
-    animation: none;
-    color: #ff7ba0;
   }
 
   #langBtn {
@@ -492,7 +483,7 @@
      classes are applied. */
   #helpBtn {
     background: transparent;
-    border: 0.5px solid rgba(255, 255, 255, 0.25);
+    border: 0.5px solid var(--ui-line);
     border-radius: 100px;
     padding: 4px 12px;
     cursor: pointer;
@@ -506,14 +497,6 @@
     animation: moodCycle 24s linear infinite;
   }
   #helpBtn:hover { border-color: rgba(255, 255, 255, 0.5); }
-  #helpBtn.warning {
-    animation: none;
-    color: #ff9e3d;
-  }
-  #helpBtn.urgent {
-    animation: none;
-    color: #ff7ba0;
-  }
   /* Nav icons load from assets/ via mask-image so they inherit currentColor
      for hover states (the bare SVG files have black fills baked in). */
   .nav-icon {
@@ -533,8 +516,8 @@
      even when the page is opened directly via file:// (some browsers will
      silently fail to apply a mask layer pulled from a relative file URL). */
   .nav-icon-translate {
-    -webkit-mask-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIxLjQxIDguNjQwMTNDMjEuNDEgOC42NDAxMyAyMS40MSA4LjY0MDEzIDIxLjQxIDguNTkwMTNDMjAuNzA1MyA2LjY2NjM1IDE5LjQyNjkgNS4wMDU0MSAxNy43NDc0IDMuODMxOTlDMTYuMDY4IDIuNjU4NTcgMTQuMDY4NyAyLjAyOTMgMTIuMDIgMi4wMjkzQzkuOTcxMiAyLjAyOTMgNy45NzE4OSAyLjY1ODU3IDYuMjkyNDYgMy44MzE5OUM0LjYxMzA0IDUuMDA1NDEgMy4zMzQ1NSA2LjY2NjM1IDIuNjI5OTUgOC41OTAxM0MyLjYyOTk1IDguNTkwMTMgMi42Mjk5NSA4LjU5MDEzIDIuNjI5OTUgOC42NDAxM0MxLjg0MzA4IDEwLjgxMSAxLjg0MzA4IDEzLjE4OTIgMi42Mjk5NSAxNS4zNjAxQzIuNjI5OTUgMTUuMzYwMSAyLjYyOTk1IDE1LjM2MDEgMi42Mjk5NSAxNS40MTAxQzMuMzM0NTUgMTcuMzMzOSA0LjYxMzA0IDE4Ljk5NDggNi4yOTI0NiAyMC4xNjgzQzcuOTcxODkgMjEuMzQxNyA5Ljk3MTIgMjEuOTcxIDEyLjAyIDIxLjk3MUMxNC4wNjg3IDIxLjk3MSAxNi4wNjggMjEuMzQxNyAxNy43NDc0IDIwLjE2ODNDMTkuNDI2OSAxOC45OTQ4IDIwLjcwNTMgMTcuMzMzOSAyMS40MSAxNS40MTAxQzIxLjQxIDE1LjQxMDEgMjEuNDEgMTUuNDEwMSAyMS40MSAxNS4zNjAxQzIyLjE5NjggMTMuMTg5MiAyMi4xOTY4IDEwLjgxMSAyMS40MSA4LjY0MDEzWk00LjI1OTk1IDE0LjAwMDFDMy45MTMxOCAxMi42ODkzIDMuOTEzMTggMTEuMzEwOSA0LjI1OTk1IDEwLjAwMDFINi4xMTk5NUM1Ljk1OTk4IDExLjMyODcgNS45NTk5OCAxMi42NzE2IDYuMTE5OTUgMTQuMDAwMUg0LjI1OTk1Wk01LjA3OTk1IDE2LjAwMDFINi40Nzk5NUM2LjcxNDY3IDE2Ljg5MiA3LjA1MDE2IDE3Ljc1NDIgNy40Nzk5NSAxOC41NzAxQzYuNDk5MjUgMTcuOTAyMSA1LjY3OTQ1IDE3LjAyNDIgNS4wNzk5NSAxNi4wMDAxWk02LjQ3OTk1IDguMDAwMTNINS4wNzk5NUM1LjY3MDgyIDYuOTc5MjEgNi40ODAxNCA2LjEwMTU5IDcuNDQ5OTUgNS40MzAxM0M3LjAzMDUxIDYuMjQ3MzcgNi43MDUwOSA3LjEwOTU0IDYuNDc5OTUgOC4wMDAxM1pNMTEgMTkuNzAwMUM5Ljc3MTcyIDE4Ljc5ODggOC45MDkxIDE3LjQ4NTQgOC41Njk5NSAxNi4wMDAxSDExVjE5LjcwMDFaTTExIDE0LjAwMDFIOC4xMzk5NUM3Ljk1MzM0IDEyLjY3MzMgNy45NTMzNCAxMS4zMjY5IDguMTM5OTUgMTAuMDAwMUgxMVYxNC4wMDAxWk0xMSA4LjAwMDEzSDguNTY5OTVDOC45MDkxIDYuNTE0ODkgOS43NzE3MiA1LjIwMTQ0IDExIDQuMzAwMTNWOC4wMDAxM1pNMTguOTIgOC4wMDAxM0gxNy41MkMxNy4yODUyIDcuMTA4MjggMTYuOTQ5NyA2LjI0NjA2IDE2LjUyIDUuNDMwMTNDMTcuNTAwNyA2LjA5ODIgMTguMzIwNSA2Ljk3NjA3IDE4LjkyIDguMDAwMTNaTTEzIDQuMzAwMTNDMTQuMjI4MiA1LjIwMTQ0IDE1LjA5MDggNi41MTQ4OSAxNS40MyA4LjAwMDEzSDEzVjQuMzAwMTNaTTEzIDE5LjcwMDFWMTYuMDAwMUgxNS40M0MxNS4wOTA4IDE3LjQ4NTQgMTQuMjI4MiAxOC43OTg4IDEzIDE5LjcwMDFaTTE1Ljg2IDE0LjAwMDFIMTNWMTAuMDAwMUgxNS44NkMxNi4wNDY2IDExLjMyNjkgMTYuMDQ2NiAxMi42NzMzIDE1Ljg2IDE0LjAwMDFaTTE2LjU1IDE4LjU3MDFDMTYuOTc5NyAxNy43NTQyIDE3LjMxNTIgMTYuODkyIDE3LjU1IDE2LjAwMDFIMTguOTVDMTguMzUwNSAxNy4wMjQyIDE3LjUzMDcgMTcuOTAyMSAxNi41NSAxOC41NzAxWk0xOS43NCAxNC4wMDAxSDE3Ljg4QzE3Ljk2MTMgMTMuMzM2NiAxOC4wMDE0IDEyLjY2ODYgMTggMTIuMDAwMUMxOC4wMDExIDExLjMzMTYgMTcuOTYxIDEwLjY2MzcgMTcuODggMTAuMDAwMUgxOS43NEMyMC4wODY3IDExLjMxMDkgMjAuMDg2NyAxMi42ODkzIDE5Ljc0IDE0LjAwMDFaIiBmaWxsPSJibGFjayIvPgo8L3N2Zz4K");
-            mask-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTIxLjQxIDguNjQwMTNDMjEuNDEgOC42NDAxMyAyMS40MSA4LjY0MDEzIDIxLjQxIDguNTkwMTNDMjAuNzA1MyA2LjY2NjM1IDE5LjQyNjkgNS4wMDU0MSAxNy43NDc0IDMuODMxOTlDMTYuMDY4IDIuNjU4NTcgMTQuMDY4NyAyLjAyOTMgMTIuMDIgMi4wMjkzQzkuOTcxMiAyLjAyOTMgNy45NzE4OSAyLjY1ODU3IDYuMjkyNDYgMy44MzE5OUM0LjYxMzA0IDUuMDA1NDEgMy4zMzQ1NSA2LjY2NjM1IDIuNjI5OTUgOC41OTAxM0MyLjYyOTk1IDguNTkwMTMgMi42Mjk5NSA4LjU5MDEzIDIuNjI5OTUgOC42NDAxM0MxLjg0MzA4IDEwLjgxMSAxLjg0MzA4IDEzLjE4OTIgMi42Mjk5NSAxNS4zNjAxQzIuNjI5OTUgMTUuMzYwMSAyLjYyOTk1IDE1LjM2MDEgMi42Mjk5NSAxNS40MTAxQzMuMzM0NTUgMTcuMzMzOSA0LjYxMzA0IDE4Ljk5NDggNi4yOTI0NiAyMC4xNjgzQzcuOTcxODkgMjEuMzQxNyA5Ljk3MTIgMjEuOTcxIDEyLjAyIDIxLjk3MUMxNC4wNjg3IDIxLjk3MSAxNi4wNjggMjEuMzQxNyAxNy43NDc0IDIwLjE2ODNDMTkuNDI2OSAxOC45OTQ4IDIwLjcwNTMgMTcuMzMzOSAyMS40MSAxNS40MTAxQzIxLjQxIDE1LjQxMDEgMjEuNDEgMTUuNDEwMSAyMS40MSAxNS4zNjAxQzIyLjE5NjggMTMuMTg5MiAyMi4xOTY4IDEwLjgxMSAyMS40MSA4LjY0MDEzWk00LjI1OTk1IDE0LjAwMDFDMy45MTMxOCAxMi42ODkzIDMuOTEzMTggMTEuMzEwOSA0LjI1OTk1IDEwLjAwMDFINi4xMTk5NUM1Ljk1OTk4IDExLjMyODcgNS45NTk5OCAxMi42NzE2IDYuMTE5OTUgMTQuMDAwMUg0LjI1OTk1Wk01LjA3OTk1IDE2LjAwMDFINi40Nzk5NUM2LjcxNDY3IDE2Ljg5MiA3LjA1MDE2IDE3Ljc1NDIgNy40Nzk5NSAxOC41NzAxQzYuNDk5MjUgMTcuOTAyMSA1LjY3OTQ1IDE3LjAyNDIgNS4wNzk5NSAxNi4wMDAxWk02LjQ3OTk1IDguMDAwMTNINS4wNzk5NUM1LjY3MDgyIDYuOTc5MjEgNi40ODAxNCA2LjEwMTU5IDcuNDQ5OTUgNS40MzAxM0M3LjAzMDUxIDYuMjQ3MzcgNi43MDUwOSA3LjEwOTU0IDYuNDc5OTUgOC4wMDAxM1pNMTEgMTkuNzAwMUM5Ljc3MTcyIDE4Ljc5ODggOC45MDkxIDE3LjQ4NTQgOC41Njk5NSAxNi4wMDAxSDExVjE5LjcwMDFaTTExIDE0LjAwMDFIOC4xMzk5NUM3Ljk1MzM0IDEyLjY3MzMgNy45NTMzNCAxMS4zMjY5IDguMTM5OTUgMTAuMDAwMUgxMVYxNC4wMDAxWk0xMSA4LjAwMDEzSDguNTY5OTVDOC45MDkxIDYuNTE0ODkgOS43NzE3MiA1LjIwMTQ0IDExIDQuMzAwMTNWOC4wMDAxM1pNMTguOTIgOC4wMDAxM0gxNy41MkMxNy4yODUyIDcuMTA4MjggMTYuOTQ5NyA2LjI0NjA2IDE2LjUyIDUuNDMwMTNDMTcuNTAwNyA2LjA5ODIgMTguMzIwNSA2Ljk3NjA3IDE4LjkyIDguMDAwMTNaTTEzIDQuMzAwMTNDMTQuMjI4MiA1LjIwMTQ0IDE1LjA5MDggNi41MTQ4OSAxNS40MyA4LjAwMDEzSDEzVjQuMzAwMTNaTTEzIDE5LjcwMDFWMTYuMDAwMUgxNS40M0MxNS4wOTA4IDE3LjQ4NTQgMTQuMjI4MiAxOC43OTg4IDEzIDE5LjcwMDFaTTE1Ljg2IDE0LjAwMDFIMTNWMTAuMDAwMUgxNS44NkMxNi4wNDY2IDExLjMyNjkgMTYuMDQ2NiAxMi42NzMzIDE1Ljg2IDE0LjAwMDFaTTE2LjU1IDE4LjU3MDFDMTYuOTc5NyAxNy43NTQyIDE3LjMxNTIgMTYuODkyIDE3LjU1IDE2LjAwMDFIMTguOTVDMTguMzUwNSAxNy4wMjQyIDE3LjUzMDcgMTcuOTAyMSAxNi41NSAxOC41NzAxWk0xOS43NCAxNC4wMDAxSDE3Ljg4QzE3Ljk2MTMgMTMuMzM2NiAxOC4wMDE0IDEyLjY2ODYgMTggMTIuMDAwMUMxOC4wMDExIDExLjMzMTYgMTcuOTYxIDEwLjY2MzcgMTcuODggMTAuMDAwMUgxOS43NEMyMC4wODY3IDExLjMxMDkgMjAuMDg2NyAxMi42ODkzIDE5Ljc0IDE0LjAwMDFaIiBmaWxsPSJibGFjayIvPgo8L3N2Zz4K");
+    -webkit-mask-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTUgOEwxMCAxM000IDE0TDEwIDhMMTIgNU0yIDVIMTRNNyAySDhNMTIuOTEzIDE3SDIwLjA4N00xMi45MTMgMTdMMTEgMjFNMTIuOTEzIDE3TDE1Ljc3ODMgMTEuMDA5QzE2LjAwOTIgMTAuNTI2MyAxNi4xMjQ2IDEwLjI4NDkgMTYuMjgyNiAxMC4yMDg2QzE2LjQxOTkgMTAuMTQyMyAxNi41ODAxIDEwLjE0MjMgMTYuNzE3NCAxMC4yMDg2QzE2Ljg3NTQgMTAuMjg0OSAxNi45OTA4IDEwLjUyNjMgMTcuMjIxNyAxMS4wMDlMMjAuMDg3IDE3TTIwLjA4NyAxN0wyMiAyMSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=");
+            mask-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTUgOEwxMCAxM000IDE0TDEwIDhMMTIgNU0yIDVIMTRNNyAySDhNMTIuOTEzIDE3SDIwLjA4N00xMi45MTMgMTdMMTEgMjFNMTIuOTEzIDE3TDE1Ljc3ODMgMTEuMDA5QzE2LjAwOTIgMTAuNTI2MyAxNi4xMjQ2IDEwLjI4NDkgMTYuMjgyNiAxMC4yMDg2QzE2LjQxOTkgMTAuMTQyMyAxNi41ODAxIDEwLjE0MjMgMTYuNzE3NCAxMC4yMDg2QzE2Ljg3NTQgMTAuMjg0OSAxNi45OTA4IDEwLjUyNjMgMTcuMjIxNyAxMS4wMDlMMjAuMDg3IDE3TTIwLjA4NyAxN0wyMiAyMSIgc3Ryb2tlPSJjdXJyZW50Q29sb3IiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+Cjwvc3ZnPgo=");
   }
   .nav-icon-info {
     -webkit-mask-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDExQzExLjczNDggMTEgMTEuNDgwNCAxMS4xMDU0IDExLjI5MjkgMTEuMjkyOUMxMS4xMDU0IDExLjQ4MDQgMTEgMTEuNzM0OCAxMSAxMlYxNkMxMSAxNi4yNjUyIDExLjEwNTQgMTYuNTE5NiAxMS4yOTI5IDE2LjcwNzFDMTEuNDgwNCAxNi44OTQ2IDExLjczNDggMTcgMTIgMTdDMTIuMjY1MiAxNyAxMi41MTk2IDE2Ljg5NDYgMTIuNzA3MSAxNi43MDcxQzEyLjg5NDYgMTYuNTE5NiAxMyAxNi4yNjUyIDEzIDE2VjEyQzEzIDExLjczNDggMTIuODk0NiAxMS40ODA0IDEyLjcwNzEgMTEuMjkyOUMxMi41MTk2IDExLjEwNTQgMTIuMjY1MiAxMSAxMiAxMVpNMTIuMzggNy4wOEMxMi4xMzY1IDYuOTc5OTggMTEuODYzNSA2Ljk3OTk4IDExLjYyIDcuMDhDMTEuNDk3MyA3LjEyNzU5IDExLjM4NTEgNy4xOTg5NiAxMS4yOSA3LjI5QzExLjIwMTcgNy4zODcyIDExLjEzMDYgNy40OTg4MiAxMS4wOCA3LjYyQzExLjAyNCA3LjczODY4IDEwLjk5NjYgNy44Njg4MiAxMSA4QzEwLjk5OTIgOC4xMzE2MSAxMS4wMjQ1IDguMjYyMDcgMTEuMDc0MiA4LjM4MzkxQzExLjEyNCA4LjUwNTc0IDExLjE5NzMgOC42MTY1NiAxMS4yOSA4LjcxQzExLjM4NzIgOC43OTgzMyAxMS40OTg4IDguODY5MzYgMTEuNjIgOC45MkMxMS43NzE1IDguOTgyMjQgMTEuOTM2IDkuMDA2MzIgMTIuMDk5IDguOTkwMTFDMTIuMjYxOSA4Ljk3MzkxIDEyLjQxODQgOC45MTc5MiAxMi41NTQ3IDguODI3MDdDMTIuNjkxIDguNzM2MjIgMTIuODAyOSA4LjYxMzI4IDEyLjg4MDUgOC40NjkwN0MxMi45NTgyIDguMzI0ODYgMTIuOTk5MiA4LjE2Mzc4IDEzIDhDMTIuOTk2MyA3LjczNTIzIDEyLjg5MjcgNy40ODE2MyAxMi43MSA3LjI5QzEyLjYxNDkgNy4xOTg5NiAxMi41MDI4IDcuMTI3NTkgMTIuMzggNy4wOFpNMTIgMkMxMC4wMjIyIDIgOC4wODg3OSAyLjU4NjQ5IDYuNDQ0MyAzLjY4NTNDNC43OTk4MSA0Ljc4NDEyIDMuNTE4MDkgNi4zNDU5IDIuNzYxMjEgOC4xNzMxN0MyLjAwNDMzIDEwLjAwMDQgMS44MDYzIDEyLjAxMTEgMi4xOTIxNSAxMy45NTA5QzIuNTc4IDE1Ljg5MDcgMy41MzA0MSAxNy42NzI1IDQuOTI4OTQgMTkuMDcxMUM2LjMyNzQ2IDIwLjQ2OTYgOC4xMDkyOSAyMS40MjIgMTAuMDQ5MSAyMS44MDc5QzExLjk4ODkgMjIuMTkzNyAxMy45OTk2IDIxLjk5NTcgMTUuODI2OCAyMS4yMzg4QzE3LjY1NDEgMjAuNDgxOSAxOS4yMTU5IDE5LjIwMDIgMjAuMzE0NyAxNy41NTU3QzIxLjQxMzUgMTUuOTExMiAyMiAxMy45Nzc4IDIyIDEyQzIyIDEwLjY4NjggMjEuNzQxMyA5LjM4NjQyIDIxLjIzODggOC4xNzMxN0MyMC43MzYzIDYuOTU5OTEgMTkuOTk5NyA1Ljg1NzUyIDE5LjA3MTEgNC45Mjg5M0MxOC4xNDI1IDQuMDAwMzUgMTcuMDQwMSAzLjI2Mzc1IDE1LjgyNjggMi43NjEyQzE0LjYxMzYgMi4yNTg2NiAxMy4zMTMyIDIgMTIgMlpNMTIgMjBDMTAuNDE3OCAyMCA4Ljg3MTA0IDE5LjUzMDggNy41NTU0NCAxOC42NTE4QzYuMjM5ODUgMTcuNzcyNyA1LjIxNDQ3IDE2LjUyMzMgNC42MDg5NyAxNS4wNjE1QzQuMDAzNDcgMTMuNTk5NyAzLjg0NTA0IDExLjk5MTEgNC4xNTM3MiAxMC40MzkzQzQuNDYyNCA4Ljg4NzQzIDUuMjI0MzMgNy40NjE5NyA2LjM0MzE1IDYuMzQzMTVDNy40NjE5NyA1LjIyNDMzIDguODg3NDMgNC40NjI0IDEwLjQzOTMgNC4xNTM3MkMxMS45OTExIDMuODQ1MDQgMTMuNTk5NyA0LjAwMzQ2IDE1LjA2MTUgNC42MDg5NkMxNi41MjMzIDUuMjE0NDcgMTcuNzcyNyA2LjIzOTg0IDE4LjY1MTggNy41NTU0NEMxOS41MzA4IDguODcxMDMgMjAgMTAuNDE3NyAyMCAxMkMyMCAxNC4xMjE3IDE5LjE1NzIgMTYuMTU2NiAxNy42NTY5IDE3LjY1NjlDMTYuMTU2NiAxOS4xNTcxIDE0LjEyMTcgMjAgMTIgMjBaIiBmaWxsPSJibGFjayIvPgo8L3N2Zz4K");
@@ -704,25 +687,33 @@
     position: absolute;
     bottom: 0;
   }
+  /* Unified frosted-glass pill that wraps both action buttons. The pill is
+     the container; the buttons inside no longer carry their own border or
+     blur — they just have tinted backgrounds. */
   #bottomActions {
+    /* Same glass as #topNav so the pill and the nav read as one material. */
+    background: rgba(5, 12, 22, 0.6);
+    -webkit-backdrop-filter: blur(12px);
+            backdrop-filter: blur(12px);
+    border: 0.5px solid rgba(255, 255, 255, 0.08);
+    border-radius: 50px;
+    padding: 8px;
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 8px;
     pointer-events: auto;
   }
   #dropBtn {
     width: 58px; height: 58px;
     border-radius: 50%;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: rgba(255, 255, 255, 0.12);
-    -webkit-backdrop-filter: blur(12px);
-            backdrop-filter: blur(12px);
+    border: none;
+    background: rgba(255, 255, 255, 0.08);
     color: rgba(255, 255, 255, 0.9);
     font-size: 26px;
     font-weight: 200;
     line-height: 1;
     cursor: pointer;
-    transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.2s ease;
+    transition: transform 0.15s ease, background 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -730,8 +721,7 @@
   }
   #dropBtn:hover {
     transform: scale(1.07);
-    background: rgba(255, 255, 255, 0.18);
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.14);
   }
   #dropBtn:active { transform: scale(0.96); }
   #dropBtn:disabled { opacity: 0.45; cursor: not-allowed; }
@@ -758,15 +748,15 @@
   }
 
   #flareBtn {
-    width: 44px; height: 44px;
+    width: 58px; height: 58px;
     border-radius: 50%;
-    border: 1px solid rgba(255, 158, 61, 0.4);
-    background: rgba(255, 158, 61, 0.12);
-    -webkit-backdrop-filter: blur(12px);
-            backdrop-filter: blur(12px);
+    /* 1.5px transparent border at rest so toggling .active to a colored
+       border doesn't shift the icon by 1.5px. */
+    border: 1.5px solid transparent;
+    background: rgba(255, 158, 61, 0.15);
     color: #ff9e3d;
     cursor: pointer;
-    transition: transform 0.15s ease, background 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, opacity 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -774,28 +764,25 @@
   }
   #flareBtn:hover {
     transform: scale(1.08);
-    background: rgba(255, 158, 61, 0.2);
-    box-shadow: 0 0 18px rgba(255, 158, 61, 0.25);
+    background: rgba(255, 158, 61, 0.22);
   }
   #flareBtn:active { transform: scale(0.94); }
   #flareBtn:disabled,
   #flareBtn.locked {
-    opacity: 0.4;
+    opacity: 0.55;
     cursor: not-allowed;
-    border-color: rgba(255, 255, 255, 0.15);
-    background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.5);
   }
   #flareBtn:disabled:hover,
   #flareBtn.locked:hover {
     transform: none;
-    background: rgba(255, 255, 255, 0.05);
-    box-shadow: none;
+    background: rgba(255, 255, 255, 0.06);
   }
-  #flareBtn svg { width: 18px; height: 18px; display: block; }
+  #flareBtn svg { width: 22px; height: 22px; display: block; }
   #flareBtn.active {
-    background: rgba(255, 158, 61, 0.32);
-    border-color: rgba(255, 158, 61, 0.7);
+    background: rgba(255, 158, 61, 0.25);
+    border-color: #ff9e3d;
     color: #ffd9a5;
     box-shadow: 0 0 18px rgba(255, 158, 61, 0.35);
   }
@@ -1177,6 +1164,12 @@
     line-height: 1.55;
     margin-bottom: 18px;
   }
+  .geo-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+  }
 
   #zoomLabel {
     position: fixed;
@@ -1262,8 +1255,8 @@
     bottom: 24px;
     left: 24px;
     z-index: 600;
-    width: 280px;
-    background: rgba(13, 24, 38, 0.72);
+    width: 230px;
+    background: rgba(5, 12, 22, 0.6);
     -webkit-backdrop-filter: blur(12px);
             backdrop-filter: blur(12px);
     border: 0.5px solid rgba(255, 255, 255, 0.1);
@@ -1278,51 +1271,55 @@
     letter-spacing: 0.14em;
     text-transform: uppercase;
     color: rgba(255, 255, 255, 0.4);
-    border-bottom: 0.5px solid rgba(255, 255, 255, 0.06);
+    border-bottom: 0.5px solid var(--ui-line);
     display: flex;
     align-items: center;
     justify-content: space-between;
   }
   #hwRows { display: flex; flex-direction: column; }
   .hw-row {
+    /* Flex-column: continent line stacked tight above the message line so
+       each entry reads as one unit. The mood dot sits inline with the
+       continent label as a tag, not as a leading bullet. */
     display: flex;
-    align-items: center;
-    gap: 9px;
-    padding: 7px 12px;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 12px;
     cursor: pointer;
-    border-bottom: 0.5px solid rgba(255, 255, 255, 0.04);
+    /* Inter-item dividers — ~40% of the heading divider's opacity (var
+       --ui-line = 0.25). Subordinate so the section break under the title
+       remains the strongest line in the panel. */
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.1);
     transition: background 0.12s;
     min-width: 0;
   }
   .hw-row:last-child { border-bottom: none; }
   .hw-row:hover { background: rgba(255, 255, 255, 0.05); }
+  .hw-row-cont-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
   .hw-row-dot {
-    width: 7px; height: 7px;
+    width: 6px; height: 6px;
     border-radius: 50%;
     flex-shrink: 0;
     background: var(--c, #999);
     box-shadow: 0 0 4px var(--c-soft, rgba(255, 255, 255, 0.2));
   }
-  .hw-row-body {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
   .hw-row-cont {
-    font-size: 9px;
-    letter-spacing: 0.12em;
+    font-size: 10px;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: rgba(255, 255, 255, 0.4);
   }
   .hw-row-msg {
-    font-size: 12px;
-    color: rgba(255, 255, 255, 0.85);
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.9);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    line-height: 1.35;
+    line-height: 1.3;
   }
 
   /* Mobile carousel — #hwToggle is the carousel card on mobile, hidden on desktop.
@@ -1339,7 +1336,7 @@
     display: none;
     border-radius: 8px;
     border: 0.5px solid rgba(255, 255, 255, 0.1);
-    background: rgba(13, 24, 38, 0.72);
+    background: rgba(5, 12, 22, 0.6);
     -webkit-backdrop-filter: blur(12px);
             backdrop-filter: blur(12px);
     padding: 10px 14px 9px;
@@ -1356,6 +1353,14 @@
     padding-bottom: 7px;
     margin-bottom: 8px;
     border-bottom: 0.5px solid rgba(255, 255, 255, 0.08);
+    transition: border-color 0.22s ease, margin-bottom 0.22s ease, padding-bottom 0.22s ease;
+  }
+  /* When the carousel is collapsed, the body is hidden — drop the header's
+     divider and trailing space so the line doesn't hang with nothing below. */
+  #hwToggle.collapsed .hw-car-header {
+    border-bottom-color: transparent;
+    margin-bottom: 0;
+    padding-bottom: 0;
   }
   .hw-car-label {
     font-size: 9px;
@@ -1547,8 +1552,11 @@
 
 <div id="geoMsg" role="dialog" aria-modal="true">
   <div class="geo-card">
-    <div class="geo-text">Hello, World needs your real location to participate. You can still browse and read messages without sharing yours.</div>
-    <button class="btn" id="geoDismiss" type="button">ok</button>
+    <div class="geo-text" id="geoText">Hello, World needs your real location to participate. You can still browse and read messages without sharing yours.</div>
+    <div class="geo-actions">
+      <button class="btn" id="geoRetry" type="button" hidden>try again</button>
+      <button class="btn" id="geoDismiss" type="button">ok</button>
+    </div>
   </div>
 </div>
 
@@ -2053,18 +2061,78 @@ function nearestCity(lat, lng) {
   return best ? best.name : `${lat.toFixed(2)}, ${lng.toFixed(2)}`;
 }
 
+// ───────────── REVERSE GEOCODING ─────────────
+// BigDataCloud's free reverse-geocode-client endpoint — no key needed, runs
+// from the browser. Returns "City, Country" for accuracy that the hardcoded
+// CITIES table can't match (it would call Stuttgart "Strasbourg" because the
+// nearest hardcoded city is across the border). Falls back to nearestCity()
+// on any failure (network, timeout, empty response).
+//
+// Called from compose / submit paths only — NOT from the flare aim label,
+// which fires on every mousemove and would melt the API.
+const reverseGeocodeCache = new Map();
+async function reverseGeocode(lat, lng) {
+  // ~110m cache grid — same precision dots store at, so the cache hits
+  // perfectly when we look up the same dot's location twice.
+  const key = `${lat.toFixed(3)},${lng.toFixed(3)}`;
+  if (reverseGeocodeCache.has(key)) return reverseGeocodeCache.get(key);
+  // Land-vs-water decided by our own bbox cascade; lets us pick a sensible
+  // fallback (named ocean for water coords, nearest hardcoded city for land
+  // coords) even if the API call fails outright.
+  const overWater = continentBBox(lat, lng) === null;
+  const fallback = overWater ? oceanFromLatLng(lat, lng) : nearestCity(lat, lng);
+  try {
+    const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+    const r = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!r.ok) throw new Error("bdc " + r.status);
+    const data = await r.json();
+    // The free `reverse-geocode-client` endpoint returns the nearest country
+    // even for ocean coordinates (so Indian Ocean comes back as Madagascar).
+    // The reliable "this is open water" signal is an empty `countryCode` —
+    // BigDataCloud only fills it for points actually inside a country's
+    // boundary. `principalSubdivision` is a secondary signal: open water has
+    // no admin region either.
+    const countryCode = data.countryCode || "";
+    const subdivision = data.principalSubdivision || "";
+    if (!countryCode || !subdivision) {
+      const ocean = oceanFromLatLng(lat, lng);
+      reverseGeocodeCache.set(key, ocean);
+      return ocean;
+    }
+    const city = data.city || data.locality || subdivision;
+    const country = data.countryName || "";
+    let result = "";
+    if (city && country) result = `${city}, ${country}`;
+    else if (city) result = city;
+    else if (country) result = country;
+    if (!result) result = fallback;
+    reverseGeocodeCache.set(key, result);
+    return result;
+  } catch (e) {
+    reverseGeocodeCache.set(key, fallback);
+    return fallback;
+  }
+}
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   }[c]));
 }
 
-// ───────────── CONTINENT (coordinate bbox cascade) ─────────────
+// ───────────── CONTINENT / OCEAN (coordinate bbox cascade) ─────────────
 // Approximate, not a GIS lookup. Order matters: more-specific carve-outs
 // (Middle East as Asia, Pacific island sweep) come before broader fallbacks.
-// Used both on insert and as a client-side fallback when the DB row is
-// missing the continent column (older rows, or pre-migration).
-function continentFromLatLng(lat, lng) {
+//
+// `continentBBox` is the strict version — returns null for coords that don't
+// fall in any continent box (i.e., over water). `continentFromLatLng` always
+// returns a continent: bbox match if possible, nearest-continent centroid
+// otherwise. The split lets the caller distinguish "this is on land" from
+// "this is on water but we still need a target continent for response gating".
+function continentBBox(lat, lng) {
   const w = ((lng + 540) % 360) - 180;
   if (lat < -60) return "Antarctica";
   // Oceania: Australia/NZ, Pacific east of dateline, plus PNG/Solomons strip
@@ -2082,9 +2150,67 @@ function continentFromLatLng(lat, lng) {
   if (lat >= 12 && lat <= 42 && w >= 33 && w <= 65) return "Asia";
   // Africa (Egypt etc. inside this; ME already filtered out above)
   if (lat >= -35 && lat <= 37 && w >= -27 && w <= 52) return "Africa";
-  // Anything that didn't match a continent box is over open ocean — used by
-  // flare placement to refuse ocean-tap aiming.
   return null;
+}
+
+// Continent centroids (rough) — used to assign ocean coords to the closest
+// land mass so people there can still respond to ocean flares.
+const CONTINENT_CENTROIDS = [
+  { name: "North America", lat: 45, lng: -100 },
+  { name: "South America", lat: -15, lng:  -60 },
+  { name: "Europe",        lat: 52, lng:   15 },
+  { name: "Africa",        lat:  5, lng:   20 },
+  { name: "Asia",          lat: 40, lng:   90 },
+  { name: "Oceania",       lat: -25, lng:  135 },
+  { name: "Antarctica",    lat: -80, lng:    0 }
+];
+function nearestContinent(lat, lng) {
+  const w = ((lng + 540) % 360) - 180;
+  const cosLat = Math.cos((lat * Math.PI) / 180);
+  let best = null, bestD = Infinity;
+  for (const c of CONTINENT_CENTROIDS) {
+    const dLat = c.lat - lat;
+    let dLng = c.lng - w;
+    if (dLng > 180) dLng -= 360;
+    if (dLng < -180) dLng += 360;
+    const dx = dLng * cosLat;
+    const d = dLat * dLat + dx * dx;
+    if (d < bestD) { bestD = d; best = c; }
+  }
+  return best ? best.name : "Asia";
+}
+
+function continentFromLatLng(lat, lng) {
+  return continentBBox(lat, lng) || nearestContinent(lat, lng);
+}
+
+// Named body of water at the given coords. Caller should only invoke this
+// when the coords are known to be over water (continentBBox returned null,
+// or the reverse-geocode API returned empty city + country).
+function oceanFromLatLng(lat, lng) {
+  const w = ((lng + 540) % 360) - 180;
+  // Specific named seas/gulfs first (smaller, inside-the-coastline bodies).
+  if (lat >= 30 && lat <= 46 && w >= -6  && w <=  36) return "Mediterranean Sea";
+  if (lat >= 40 && lat <= 47 && w >= 27  && w <=  42) return "Black Sea";
+  if (lat >=  9 && lat <= 22 && w >= -89 && w <= -60) return "Caribbean Sea";
+  if (lat >= 18 && lat <= 30 && w >= -97 && w <= -82) return "Gulf of Mexico";
+  if (lat >= 12 && lat <= 28 && w >=  32 && w <=  44) return "Red Sea";
+  if (lat >= 24 && lat <= 30 && w >=  48 && w <=  57) return "Persian Gulf";
+  if (lat >=  5 && lat <= 25 && w >=  50 && w <=  78) return "Arabian Sea";
+  if (lat >=  5 && lat <= 22 && w >=  80 && w <=  95) return "Bay of Bengal";
+  if (lat >=  0 && lat <= 23 && w >= 100 && w <= 122) return "South China Sea";
+  if (lat >= 51 && lat <= 62 && w >=  -4 && w <=   9) return "North Sea";
+  if (lat >= 54 && lat <= 66 && w >=  10 && w <=  30) return "Baltic Sea";
+  // Polar oceans
+  if (lat >  60) return "Arctic Ocean";
+  if (lat < -60) return "Southern Ocean";
+  // Major oceans by longitude band — Pacific wraps around the dateline
+  // (off Americas to the east, off Asia to the west), Atlantic between the
+  // Americas and Europe/Africa, Indian between Africa and Australasia.
+  if (w >= 100 || w <= -75) return "Pacific Ocean";
+  if (w >= -75 && w <= 20)  return "Atlantic Ocean";
+  if (w >=  20 && w < 100)  return "Indian Ocean";
+  return "Pacific Ocean";
 }
 
 // ───────────── MAP ─────────────
@@ -2394,11 +2520,11 @@ function renderHeardPanel() {
     const row = document.createElement("div");
     row.className = "hw-row";
     row.innerHTML =
-      `<span class="hw-row-dot" style="--c:${color}; --c-soft:${soft};"></span>` +
-      `<div class="hw-row-body">` +
-        `<div class="hw-row-cont">${escapeHtml(msg.continent || "")}</div>` +
-        `<div class="hw-row-msg">${escapeHtml(firstLine(msg.text || ""))}</div>` +
-      `</div>`;
+      `<div class="hw-row-cont-line">` +
+        `<span class="hw-row-dot" style="--c:${color}; --c-soft:${soft};"></span>` +
+        `<span class="hw-row-cont">${escapeHtml(msg.continent || "")}</span>` +
+      `</div>` +
+      `<div class="hw-row-msg">${escapeHtml(firstLine(msg.text || ""))}</div>`;
     row.addEventListener("click", () => focusDot(msg));
     rowsEl.appendChild(row);
   }
@@ -2616,7 +2742,15 @@ function openCompose(latlng) {
     interactive: false
   }).addTo(map);
 
+  // Optimistic: show hardcoded city instantly, then upgrade with the API
+  // result a moment later (only if the compose is still open at the same
+  // latlng — otherwise we'd overwrite a different session's label).
   composeLoc.textContent = nearestCity(latlng.lat, latlng.lng);
+  reverseGeocode(latlng.lat, latlng.lng).then(real => {
+    if (compose.classList.contains("open") && pendingLatLng === latlng) {
+      composeLoc.textContent = real;
+    }
+  });
   composeText.value = "";
   selectedMood = null;
   [...moodPickerEl.children].forEach(c => c.classList.remove("selected"));
@@ -2667,12 +2801,14 @@ async function submit() {
   if (hasDroppedToday()) { closeCompose(false); return; }
 
   const ll = pendingLatLng;
-  const loc = nearestCity(ll.lat, ll.lng);
-  const continent = continentFromLatLng(ll.lat, ll.lng);
-
-  // Lock the send button while the network call is in flight so a double-tap
+  // Lock the send button while we fetch the location + insert so a double-tap
   // can't create two rows.
   sendBtn.disabled = true;
+  // BigDataCloud reverse-geocode for accurate city/country (falls back to
+  // the hardcoded CITIES table on failure). Cache hit is instant since
+  // openCompose already warmed it.
+  const loc = await reverseGeocode(ll.lat, ll.lng);
+  const continent = continentFromLatLng(ll.lat, ll.lng);
 
   // Write to Supabase. We let the database generate the UUID and return it so
   // the in-memory id matches the database id (important for realtime: the
@@ -2996,12 +3132,41 @@ const dropBtn = document.getElementById("dropBtn");
 const geoMsg = document.getElementById("geoMsg");
 const geoDismiss = document.getElementById("geoDismiss");
 
-function showGeoDenied() {
+// `pendingGeoRetry` holds the function to re-invoke if the user taps "try
+// again" — only set when the failure was retryable (timeout / unavailable),
+// not for permission-denied (where retrying without OS-level changes is
+// pointless).
+let pendingGeoRetry = null;
+const geoTextEl = document.getElementById("geoText");
+const geoRetryBtn = document.getElementById("geoRetry");
+
+function showGeoDenied(opts) {
+  opts = opts || {};
+  if (geoTextEl) {
+    geoTextEl.textContent = opts.text
+      || "Hello, World needs your real location to participate. You can still browse and read messages without sharing yours.";
+  }
+  if (geoRetryBtn) geoRetryBtn.hidden = !opts.retry;
+  pendingGeoRetry = opts.retry || null;
   geoMsg.classList.add("open");
 }
-geoDismiss.addEventListener("click", () => geoMsg.classList.remove("open"));
+geoDismiss.addEventListener("click", () => {
+  geoMsg.classList.remove("open");
+  pendingGeoRetry = null;
+});
+if (geoRetryBtn) {
+  geoRetryBtn.addEventListener("click", () => {
+    geoMsg.classList.remove("open");
+    const retry = pendingGeoRetry;
+    pendingGeoRetry = null;
+    if (typeof retry === "function") retry();
+  });
+}
 geoMsg.addEventListener("click", (e) => {
-  if (e.target === geoMsg) geoMsg.classList.remove("open");
+  if (e.target === geoMsg) {
+    geoMsg.classList.remove("open");
+    pendingGeoRetry = null;
+  }
 });
 
 function requestDrop() {
@@ -3023,11 +3188,27 @@ function requestDrop() {
       openCompose(ll);
       hideHint();
     },
-    () => {
+    (err) => {
       dropBtn.disabled = false;
-      showGeoDenied();
+      // Differentiate failure modes so the user knows what to do.
+      if (err && err.code === err.PERMISSION_DENIED) {
+        // Real denial — retry without permission change is pointless.
+        showGeoDenied();
+      } else if (err && err.code === err.TIMEOUT) {
+        showGeoDenied({
+          text: "Took too long to get your location. Try again?",
+          retry: requestDrop
+        });
+      } else {
+        showGeoDenied({
+          text: "Couldn't get your location. Try again?",
+          retry: requestDrop
+        });
+      }
     },
-    { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+    // 20s timeout — desktop browsers (especially first-grant) can take a
+    // while to actually resolve the position after the user clicks Allow.
+    { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 }
   );
 }
 dropBtn.addEventListener("click", requestDrop);
@@ -3125,18 +3306,6 @@ if (hasDroppedToday()) {
     else if (minutes > 0) text = `resets in ${minutes}m`;
     else text = "resetting soon";
     el.textContent = text;
-    // Urgency shift: amber under 6h, soft pink-red under 1h. Mirror the
-    // class on #helpBtn so both elements stay in lock-step (mood cycle in
-    // parallel during the day, then amber/pink together as midnight nears).
-    const urgent = diff > 0 && diff < 3600000;
-    const warning = diff >= 3600000 && diff < 21600000;
-    el.classList.toggle("urgent", urgent);
-    el.classList.toggle("warning", warning);
-    const rulesEl = document.getElementById("helpBtn");
-    if (rulesEl) {
-      rulesEl.classList.toggle("urgent", urgent);
-      rulesEl.classList.toggle("warning", warning);
-    }
   }
   update();
   setInterval(update, 60000);
@@ -3416,8 +3585,12 @@ function buildFlarePopup(flare) {
   const canRespond = sameContinent && !alreadyResponded;
   const isMine = flare.planter_id === PLANTER_ID;
 
+  // Eyebrow shows the AIM location (city/country or named body of water for
+  // ocean flares) instead of the bare continent — gives "flare · pacific ocean"
+  // for water targets and "flare · tokyo, japan" for land targets.
+  const eyebrowLoc = flare.loc || flare.continent || "";
   let html =
-    `<div class="flare-popup-eyebrow">flare · ${escapeHtml(flare.continent || "")}</div>` +
+    `<div class="flare-popup-eyebrow">flare · ${escapeHtml(eyebrowLoc)}</div>` +
     `<div class="flare-popup-q">${escapeHtml(flare.text)}</div>` +
     `<div class="flare-popup-meta">` +
       `<span>${isMine ? "your flare" : "from " + escapeHtml(flare.planter_loc || flare.continent || "")}</span>` +
@@ -3553,12 +3726,20 @@ function updateFlareCounter() {
 function openFlareCompose(latlng, continent) {
   pendingFlareLatLng = latlng;
   flareComposeText.value = "";
-  // City extracted from `nearestCity` ("Tokyo, Japan" → "Tokyo") so the
-  // confirmation reads like "sending a flare to TOKYO, ASIA".
-  const city = (nearestCity(latlng.lat, latlng.lng) || "").split(",")[0].trim();
-  flareComposeTarget.textContent = city
-    ? `sending a flare to ${city}, ${continent}`
-    : `sending a flare to ${continent}`;
+  // Reads as "sending a flare to TOKYO, ASIA" (city + continent). Optimistic
+  // hardcoded value first, then async upgrade from the BigDataCloud API.
+  const setTarget = (raw) => {
+    const c = (raw || "").split(",")[0].trim();
+    flareComposeTarget.textContent = c
+      ? `sending a flare to ${c}, ${continent}`
+      : `sending a flare to ${continent}`;
+  };
+  setTarget(nearestCity(latlng.lat, latlng.lng));
+  reverseGeocode(latlng.lat, latlng.lng).then(real => {
+    if (flareCompose.classList.contains("open") && pendingFlareLatLng === latlng) {
+      setTarget(real);
+    }
+  });
   clearFlareError();
   updateFlareCounter();
   flareCompose.classList.add("open");
@@ -3580,15 +3761,14 @@ async function submitFlare() {
 
   const ll = pendingFlareLatLng;
   const continent = continentFromLatLng(ll.lat, ll.lng);
-  const loc = nearestCity(ll.lat, ll.lng);
-  // planter_loc = where the flare was SHOT FROM (the planter's actual GPS).
-  // Distinct from `loc` which is the AIM city. Captured up in requestFlare();
-  // falls back to "" if for some reason geolocation didn't yield coords.
-  const planter_loc = planterLatLng
-    ? nearestCity(planterLatLng.lat, planterLatLng.lng)
-    : "";
-
   flareSendBtn.disabled = true;
+  // Both fetched via the reverse-geocode API for accuracy (falls back to
+  // CITIES on failure). `loc` = aim city; `planter_loc` = planter's real
+  // city (their GPS, captured in requestFlare).
+  const loc = await reverseGeocode(ll.lat, ll.lng);
+  const planter_loc = planterLatLng
+    ? await reverseGeocode(planterLatLng.lat, planterLatLng.lng)
+    : "";
 
   const { data, error } = await sb
     .from("flares")
@@ -3670,7 +3850,15 @@ function pinHint(text) {
 
 function updateAimLabel(clientX, clientY, latlng) {
   if (!aimLabelEl) return;
-  const txt = nearestCity(latlng.lat, latlng.lng);
+  // Synchronous land-vs-water detect via the bbox cascade — fast enough to
+  // run on every mousemove. Water gets the named body; land gets the nearest
+  // hardcoded city (the API would melt under per-frame calls, and the city
+  // is good enough for "where am I roughly aiming"). Compose card / submit
+  // still use the BigDataCloud API for precise names.
+  const overWater = continentBBox(latlng.lat, latlng.lng) === null;
+  const txt = overWater
+    ? oceanFromLatLng(latlng.lat, latlng.lng)
+    : nearestCity(latlng.lat, latlng.lng);
   aimLabelEl.textContent = txt;
   aimLabelEl.style.left = clientX + "px";
   aimLabelEl.style.top = clientY + "px";
@@ -3743,8 +3931,23 @@ function requestFlare() {
       flareBtn.disabled = false;
       enterFlarePlacementMode();
     },
-    () => { flareBtn.disabled = false; showGeoDenied(); },
-    { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+    (err) => {
+      flareBtn.disabled = false;
+      if (err && err.code === err.PERMISSION_DENIED) {
+        showGeoDenied();
+      } else if (err && err.code === err.TIMEOUT) {
+        showGeoDenied({
+          text: "Took too long to get your location. Try again?",
+          retry: requestFlare
+        });
+      } else {
+        showGeoDenied({
+          text: "Couldn't get your location. Try again?",
+          retry: requestFlare
+        });
+      }
+    },
+    { enableHighAccuracy: false, timeout: 20000, maximumAge: 60000 }
   );
 }
 flareBtn.addEventListener("click", requestFlare);
@@ -3770,11 +3973,6 @@ if (IS_HOVER_DEVICE) {
     if (!flarePlacementMode) return;
     const ll = e.latlng;
     const continent = continentFromLatLng(ll.lat, ll.lng);
-    if (!continent) {
-      // Ocean tap — block, keep placement mode active so user can retry.
-      flashHint("aim at a continent");
-      return;
-    }
     exitFlarePlacementMode();
     openFlareCompose(ll, continent);
   });
@@ -3823,13 +4021,6 @@ if (!IS_HOVER_DEVICE) {
     const ll = lastAimLatLng;
     if (!ll) { hideAimLabel(); return; }
     const continent = continentFromLatLng(ll.lat, ll.lng);
-    if (!continent) {
-      // Ocean release — block, stay in placement mode so user can retry.
-      hideAimLabel();
-      lastAimLatLng = null;
-      flashHint("aim at a continent");
-      return;
-    }
     exitFlarePlacementMode();
     openFlareCompose(ll, continent);
   });
