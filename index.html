@@ -458,10 +458,20 @@
     text-transform: uppercase;
     white-space: nowrap;
     animation: moodCycle 24s linear infinite;
+    transition: color 1.6s ease;
+  }
+  /* Color shifts as midnight UTC approaches. The mood-cycle animation is
+     replaced with a static color so the urgency reads clearly. */
+  #resetTimer.warning {
+    animation: none;
+    color: #ff9e3d;
+  }
+  #resetTimer.urgent {
+    animation: none;
+    color: #ff7ba0;
   }
 
-  #langBtn,
-  #helpBtn {
+  #langBtn {
     background: transparent;
     border: none;
     padding: 4px;
@@ -473,8 +483,37 @@
     border-radius: 4px;
     transition: color 0.15s;
   }
-  #langBtn:hover,
-  #helpBtn:hover { color: rgba(255, 255, 255, 0.7); }
+  #langBtn:hover { color: rgba(255, 255, 255, 0.7); }
+
+  /* "The rules" pill — stroked border, no fill. Text color cycles through
+     the mood palette via moodCycle (same animation the reset timer uses), so
+     the two shine in lock-step — same 24s duration, both start at page load,
+     both pause and shift to amber/pink when the day-end warning/urgent
+     classes are applied. */
+  #helpBtn {
+    background: transparent;
+    border: 0.5px solid rgba(255, 255, 255, 0.25);
+    border-radius: 100px;
+    padding: 4px 12px;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.6);
+    font: inherit;
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    transition: color 1.6s ease, border-color 0.2s;
+    animation: moodCycle 24s linear infinite;
+  }
+  #helpBtn:hover { border-color: rgba(255, 255, 255, 0.5); }
+  #helpBtn.warning {
+    animation: none;
+    color: #ff9e3d;
+  }
+  #helpBtn.urgent {
+    animation: none;
+    color: #ff7ba0;
+  }
   /* Nav icons load from assets/ via mask-image so they inherit currentColor
      for hover states (the bare SVG files have black fills baked in). */
   .nav-icon {
@@ -590,6 +629,18 @@
     color: rgba(255, 255, 255, 0.45);
     text-align: center;
   }
+  .help-coffee {
+    display: block;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 0.5px solid rgba(255, 255, 255, 0.08);
+    font-size: 11px;
+    color: #ff9e3d;
+    text-align: center;
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+  .help-coffee:hover { opacity: 0.7; }
 
   #langPanel {
     position: fixed;
@@ -1436,11 +1487,9 @@
   </div>
   <div class="nav-right">
     <div id="resetTimer" aria-live="off"></div>
+    <button id="helpBtn" type="button" aria-label="the rules">the rules</button>
     <button id="langBtn" type="button" aria-label="translation language" aria-haspopup="true" aria-expanded="false">
       <span class="nav-icon nav-icon-translate" aria-hidden="true"></span>
-    </button>
-    <button id="helpBtn" type="button" aria-label="how it works">
-      <span class="nav-icon nav-icon-info" aria-hidden="true"></span>
     </button>
   </div>
 </nav>
@@ -1505,7 +1554,7 @@
 
 <div id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
   <div class="help-card">
-    <div class="help-eyebrow">how it works</div>
+    <div class="help-eyebrow">the rules</div>
     <h2 id="helpModalTitle" class="help-title">Hello, World</h2>
     <div class="help-section">
       <div class="help-section-header">
@@ -1524,6 +1573,7 @@
       <div class="help-section-body">Aim one anywhere on the map. Only people physically in that continent can respond. One flare per day.</div>
     </div>
     <div class="help-footer">Everything resets at midnight UTC.</div>
+    <a class="help-coffee" href="https://ko-fi.com/thinksubliminal" target="_blank" rel="noopener">a coffee goes a long way ☕</a>
   </div>
 </div>
 
@@ -3075,6 +3125,18 @@ if (hasDroppedToday()) {
     else if (minutes > 0) text = `resets in ${minutes}m`;
     else text = "resetting soon";
     el.textContent = text;
+    // Urgency shift: amber under 6h, soft pink-red under 1h. Mirror the
+    // class on #helpBtn so both elements stay in lock-step (mood cycle in
+    // parallel during the day, then amber/pink together as midnight nears).
+    const urgent = diff > 0 && diff < 3600000;
+    const warning = diff >= 3600000 && diff < 21600000;
+    el.classList.toggle("urgent", urgent);
+    el.classList.toggle("warning", warning);
+    const rulesEl = document.getElementById("helpBtn");
+    if (rulesEl) {
+      rulesEl.classList.toggle("urgent", urgent);
+      rulesEl.classList.toggle("warning", warning);
+    }
   }
   update();
   setInterval(update, 60000);
