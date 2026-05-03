@@ -716,12 +716,58 @@
     border-radius: 6px;
     padding: 6px 0;
     min-width: 150px;
-    max-height: 60vh;
-    overflow-y: auto;
     display: none;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
   }
   #langPanel.open { display: block; }
+  /* Bottom-fade cue when the list overflows. Same trick as
+     .flare-popup-response-list-wrap — the fade lives on the non-scrolling
+     parent so it doesn't drift with scrollTop. JS toggles `.show-fade`
+     based on remaining-scroll. */
+  #langPanel::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 26px;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.42));
+    border-bottom-left-radius: inherit;
+    border-bottom-right-radius: inherit;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  #langPanel.show-fade::after { opacity: 1; }
+  /* Inner scroll element. Caps at ~12 visible items, but never exceeds
+     60% of viewport height so the menu always fits on small screens.
+     Scrollbar is forced visible at rest:
+       - overflow-y: scroll (not auto) reserves the gutter even when content
+         fits, so the bar always renders.
+       - -webkit-appearance: none on the scrollbar overrides macOS's
+         OS-level auto-hide, even with the system "show scroll bars: when
+         scrolling" preference active.
+       - Track has a faint background so the channel is visible too, not
+         just the thumb. */
+  .lang-panel-scroll {
+    max-height: min(60vh, 420px);
+    overflow-y: scroll;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+  }
+  .lang-panel-scroll::-webkit-scrollbar {
+    width: 8px;
+    -webkit-appearance: none;
+  }
+  .lang-panel-scroll::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+  }
+  .lang-panel-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 4px;
+  }
+  .lang-panel-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+  }
   .lang-opt {
     display: block;
     width: 100%;
@@ -3752,22 +3798,36 @@ async function submit() {
 // ───────────── LANGUAGE / TRANSLATION ─────────────
 const LANGS = [
   { code: "off",   label: "translation off" },
+  { code: "id",    label: "bahasa indonesia" },
+  { code: "cs",    label: "čeština" },
+  { code: "de",    label: "deutsch" },
   { code: "en",    label: "english" },
   { code: "es",    label: "español" },
   { code: "fr",    label: "français" },
-  { code: "de",    label: "deutsch" },
-  { code: "pt",    label: "português" },
   { code: "it",    label: "italiano" },
+  { code: "sw",    label: "kiswahili" },
+  { code: "hu",    label: "magyar" },
   { code: "nl",    label: "nederlands" },
   { code: "pl",    label: "polski" },
+  { code: "pt",    label: "português" },
+  { code: "ro",    label: "română" },
+  { code: "sv",    label: "svenska" },
+  { code: "tl",    label: "tagalog" },
+  { code: "vi",    label: "tiếng việt" },
   { code: "tr",    label: "türkçe" },
+  { code: "el",    label: "ελληνικά" },
   { code: "ru",    label: "русский" },
   { code: "uk",    label: "українська" },
+  { code: "he",    label: "עברית" },
+  { code: "ur",    label: "اردو" },
   { code: "ar",    label: "العربية" },
+  { code: "fa",    label: "فارسی" },
   { code: "hi",    label: "हिन्दी" },
-  { code: "zh",    label: "中文 (简体)" },
-  { code: "ja",    label: "日本語" },
-  { code: "ko",    label: "한국어" }
+  { code: "bn",    label: "বাংলা" },
+  { code: "th",    label: "ภาษาไทย" },
+  { code: "ko",    label: "한국어" },
+  { code: "zh-CN", label: "中文 (简体)" },
+  { code: "ja",    label: "日本語" }
 ];
 const LANG_KEY = "hw-language";
 const langBtn = document.getElementById("langBtn");
@@ -3780,7 +3840,7 @@ function getCurrentLang() {
 function setLang(code) {
   const previous = localStorage.getItem(LANG_KEY);
   localStorage.setItem(LANG_KEY, code);
-  for (const opt of langPanel.children) {
+  for (const opt of langScroll.children) {
     opt.classList.toggle("active", opt.dataset.code === code);
   }
   // If the same language is picked again, nothing to re-render.
@@ -3858,6 +3918,18 @@ function setLang(code) {
   }
 }
 
+const langScroll = document.createElement("div");
+langScroll.className = "lang-panel-scroll";
+langPanel.appendChild(langScroll);
+
+// Bottom-fade visibility — only show when the list actually overflows AND
+// the user hasn't reached the bottom. Mirrors the flare response list.
+function updateLangFade() {
+  const remaining = langScroll.scrollHeight - langScroll.clientHeight - langScroll.scrollTop;
+  langPanel.classList.toggle("show-fade", remaining > 4);
+}
+langScroll.addEventListener("scroll", updateLangFade);
+
 (function buildLangPanel() {
   for (const l of LANGS) {
     const btn = document.createElement("button");
@@ -3869,14 +3941,14 @@ function setLang(code) {
       setLang(l.code);
       closeLangPanel();
     });
-    langPanel.appendChild(btn);
+    langScroll.appendChild(btn);
   }
   // Don't auto-persist a detected default — the first-time onboarding card
   // (below) collects an explicit choice from the user. If localStorage has a
   // value (returning visitor), reflect it visually in the panel.
   const initial = localStorage.getItem(LANG_KEY);
   if (initial) {
-    for (const opt of langPanel.children) {
+    for (const opt of langScroll.children) {
       opt.classList.toggle("active", opt.dataset.code === initial);
     }
   }
@@ -3887,7 +3959,7 @@ function setLang(code) {
   if (localStorage.getItem(LANG_KEY)) return;
   const onboard = document.getElementById("langOnboard");
   const grid = onboard.querySelector(".lang-onboard-grid");
-  // Show "no translation" first, then the 16 language options.
+  // Show "no translation" first, then every language from LANGS.
   const items = [
     { code: "off", label: "no translation" },
     ...LANGS.filter(l => l.code !== "off")
@@ -3912,6 +3984,9 @@ function setLang(code) {
 function openLangPanel() {
   langPanel.classList.add("open");
   langBtn.setAttribute("aria-expanded", "true");
+  // Display: none → block flips clientHeight from 0 to real on the next
+  // frame, so defer the fade calc until layout has actually settled.
+  requestAnimationFrame(updateLangFade);
 }
 function closeLangPanel() {
   langPanel.classList.remove("open");
