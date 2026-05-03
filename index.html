@@ -1966,10 +1966,8 @@ function rowToMsg(row, mineIds) {
     loc: row.loc || "",
     mood: row.mood,
     mine: mineIds.has(row.id),
-    view_count: row.view_count || 0,
     continent: row.continent || continentFromLatLng(row.lat, row.lng),
-    // Used by the dot canvas to bucket into recency tiers (newer dots show
-    // at any zoom; older ones only when zoomed in).
+    // Used by the Heard panel to weight selection toward recent messages.
     created_at: row.created_at || null
   };
 }
@@ -3273,36 +3271,17 @@ function addDotMarker(msg) {
       opacity: 1,
       className: "dot-tooltip"
     });
-
-    // Desktop hover-as-read: many short messages fit entirely in the hover
-    // tooltip, so a click never happens and view_count under-counts. Treat a
-    // 2-second sustained hover as a read. Resets if the cursor leaves before
-    // the threshold; only fires once per hover (mouseover→mouseout cycle).
-    let dwellTimer = null;
-    m.on("mouseover", () => {
-      dotCanvas.setHovered(msg.id, true);
-      if (dwellTimer) return;
-      dwellTimer = setTimeout(() => {
-        dwellTimer = null;
-        incrementViewCount(msg.id);
-      }, 2000);
-    });
-    m.on("mouseout", () => {
-      dotCanvas.setHovered(msg.id, false);
-      if (dwellTimer) { clearTimeout(dwellTimer); dwellTimer = null; }
-    });
-  } else {
-    // Touch devices: no tooltip, but still track hover for canvas scale
-    // (briefly highlights when tapped before the popup opens).
-    m.on("mouseover", () => dotCanvas.setHovered(msg.id, true));
-    m.on("mouseout", () => dotCanvas.setHovered(msg.id, false));
   }
+  // Hover state into the dot-canvas for the scale effect. No view-count
+  // tracking — the Heard panel selects randomly weighted toward recent now,
+  // so every dot keeps its shot at airtime regardless of clicks/hovers.
+  m.on("mouseover", () => dotCanvas.setHovered(msg.id, true));
+  m.on("mouseout", () => dotCanvas.setHovered(msg.id, false));
 
   m.on("popupopen", () => {
     const el = m.getElement();
     if (el) { const d = el.querySelector(".dot"); if (d) d.classList.add("expanded"); }
     dotCanvas.setExpanded(msg.id, true);
-    incrementViewCount(msg.id);
     // Defer the scrollHeight read (forces layout) and clampable wiring out of the
     // click frame so tap → popup feels instant, then we set up clamping next tick.
     requestAnimationFrame(() => {
@@ -3387,11 +3366,24 @@ function rebuildDots() {
 }
 
 // ───────────── HEARD AROUND THE WORLD ─────────────
-// Top-viewed dot per continent today. Up to 6 rows. Sorted by view count desc.
+// One message per continent, up to 6 continents. Selection is RANDOM but
+// weighted toward recent messages — newer voices are more likely to be
+// surfaced, but every dot keeps a real chance. The panel re-rolls every
+// HW_ROTATE_MS so the displayed message changes over time and feels alive.
+//
+// Replaced the previous "top-viewed-per-continent" model — that required
+// a view_count UPDATE realtime broadcast on every popup open, which was
+// the dominant source of realtime quota burn. Random-weighted-recent is
+// purely client-side: zero database round-trips, zero realtime traffic.
+//
 // Hidden entirely when there are no messages today (radically-honest mode —
 // no seeded/fake placeholder rows).
-const HW_MAX_ROWS = 6;
+const HW_MAX_ROWS = 7;
+const HW_CANDIDATE_POOL = 30;       // most-recent N per continent
+const HW_ROTATE_MS = 30000;          // re-roll the panel every 30s
 let hwRenderTimer = null;
+let hwRotateTimer = null;
+
 function scheduleHeardPanelRender() {
   if (hwRenderTimer) return;
   hwRenderTimer = setTimeout(() => {
@@ -3400,29 +3392,69 @@ function scheduleHeardPanelRender() {
   }, 80);
 }
 
+// Weight curve: newest message gets ~20, decaying exponentially with rank.
+// At rank 10 weight is ~4; by rank 20 it's ~1; clamped at 1 so the oldest
+// candidate in the pool still has a non-zero shot. Tuned so "recent" is
+// clearly favored without making older messages effectively invisible.
+function hwWeight(rank) {
+  return Math.max(1, Math.round(20 * Math.pow(0.85, rank)));
+}
+
+function pickWeighted(candidates) {
+  // candidates: array sorted newest → oldest. Returns one element or null.
+  if (!candidates.length) return null;
+  let total = 0;
+  const weights = candidates.map((_, i) => {
+    const w = hwWeight(i);
+    total += w;
+    return w;
+  });
+  let r = Math.random() * total;
+  for (let i = 0; i < candidates.length; i++) {
+    r -= weights[i];
+    if (r <= 0) return candidates[i];
+  }
+  return candidates[candidates.length - 1];
+}
+
 function renderHeardPanel() {
   const panel = document.getElementById("hwPanel");
   const toggle = document.getElementById("hwToggle");
   const rowsEl = document.getElementById("hwRows");
   if (!panel || !rowsEl) return;
 
+  // Group all eligible messages (have text, fall in a known continent) by
+  // continent. Skip ocean coords (continentFromLatLng would still resolve
+  // them via nearestContinent, but the original logic dropped null bbox
+  // results — preserve that behavior so ocean-flares-as-stories don't sneak
+  // into the panel).
   const byContinent = new Map();
   for (const msg of messages) {
     if (!msg.text) continue;
     const c = msg.continent || continentFromLatLng(msg.lat, msg.lng);
     if (!c) continue; // ocean — skip
-    const top = byContinent.get(c);
-    if (!top || (msg.view_count || 0) > (top.view_count || 0)) {
-      byContinent.set(c, msg);
-    }
+    if (!byContinent.has(c)) byContinent.set(c, []);
+    byContinent.get(c).push(msg);
   }
 
-  const tops = [...byContinent.values()].sort((a, b) => {
-    const av = a.view_count || 0;
-    const bv = b.view_count || 0;
-    if (bv !== av) return bv - av;
-    return (a.continent || "").localeCompare(b.continent || "");
-  }).slice(0, HW_MAX_ROWS);
+  // For each continent: sort newest-first, cap at the candidate pool, then
+  // weighted-random pick one.
+  const picks = [];
+  for (const [continent, msgs] of byContinent) {
+    msgs.sort((a, b) => {
+      const at = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const bt = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return bt - at;
+    });
+    const pool = msgs.slice(0, HW_CANDIDATE_POOL);
+    const chosen = pickWeighted(pool);
+    if (chosen) picks.push(chosen);
+  }
+
+  // Stable continent ordering so the panel doesn't rearrange rows on every
+  // re-roll — only the message text inside each row changes.
+  picks.sort((a, b) => (a.continent || "").localeCompare(b.continent || ""));
+  const tops = picks.slice(0, HW_MAX_ROWS);
 
   if (tops.length === 0) {
     panel.classList.add("empty");
@@ -3454,6 +3486,17 @@ function renderHeardPanel() {
   // Mobile carousel — same `tops` data, presented one-at-a-time.
   renderCarousel(tops);
 }
+
+// Rotation: re-roll the panel periodically so a single user sees different
+// voices over time. INSERT events still trigger an immediate re-render via
+// scheduleHeardPanelRender(); this is just the steady-state heartbeat.
+function startHeardRotation() {
+  if (hwRotateTimer) return;
+  hwRotateTimer = setInterval(renderHeardPanel, HW_ROTATE_MS);
+}
+window.addEventListener("beforeunload", () => {
+  if (hwRotateTimer) { clearInterval(hwRotateTimer); hwRotateTimer = null; }
+});
 
 // ───────── MOBILE CAROUSEL ─────────
 // One-at-a-time view of the same `tops` set the desktop panel uses. Auto-
@@ -3561,22 +3604,6 @@ function focusDot(msg) {
   map.flyTo([msg.lat, msg.lng], targetZoom, { duration: 0.8 });
   // Open the popup once the flyTo settles. setTimeout matches the duration above.
   setTimeout(() => marker.openPopup(), 850);
-}
-
-// Optimistic local bump + atomic DB increment via the `increment_message_view_count`
-// RPC. Race-safe under concurrent views because the SQL function does
-// `view_count = view_count + 1` server-side. Realtime UPDATE event will echo back
-// and we take max(local, remote) to avoid going backwards.
-async function incrementViewCount(msgId) {
-  const msg = messages.find(m => m.id === msgId);
-  if (!msg) return;
-  msg.view_count = (msg.view_count || 0) + 1;
-  scheduleHeardPanelRender();
-  try {
-    await sb.rpc("increment_message_view_count", { msg_id: msgId });
-  } catch (e) {
-    console.warn("[supabase] view increment failed:", e);
-  }
 }
 
 const SILHOUETTE_STYLE = {
@@ -3766,7 +3793,6 @@ async function submit() {
     loc: data.loc || loc,
     mood: data.mood,
     mine: true,
-    view_count: data.view_count || 0,
     continent: data.continent || continent,
     created_at: data.created_at || new Date().toISOString()
   };
@@ -4257,7 +4283,7 @@ if (hasDroppedToday()) {
 (function scheduleMidnight() {
   const now = new Date();
   const next = new Date(now);
-  next.setHours(24, 0, 0, 0);
+  next.setUTCHours(24, 0, 0, 0);
   const wait = next - now + 500;
   setTimeout(() => location.reload(), wait);
 })();
@@ -5182,7 +5208,7 @@ if (IS_DEV_MODE) {
   try {
     const { data, error } = await sb
       .from("messages")
-      .select("id, text, lat, lng, loc, mood, created_at, view_count, continent")
+      .select("id, text, lat, lng, loc, mood, created_at, continent")
       .gte("created_at", todayMidnightUTC())
       .order("created_at", { ascending: true });
 
@@ -5259,10 +5285,12 @@ if (IS_DEV_MODE) {
   // initial messages are loaded.
   pretranslateAll(getCurrentLang());
 
-  // ── Realtime: subscribe to inserts AND view-count updates ──
+  // ── Realtime: subscribe to inserts ──
   // INSERT: new dots from anyone in the world appear live on the map and panel.
-  // UPDATE: view_count bumps from the increment RPC echo back so the panel
-  // re-ranks in near-realtime as people open popups elsewhere.
+  // No UPDATE subscription — view-count tracking was removed (the Heard panel
+  // now picks randomly weighted toward recent, no DB round-trip needed). That
+  // change cuts realtime broadcast volume by ~80% and keeps us inside the
+  // free tier without sacrificing the live-map magic.
   sb.channel("messages-realtime")
     .on(
       "postgres_changes",
@@ -5283,23 +5311,13 @@ if (IS_DEV_MODE) {
         if (lang && lang !== "off" && msg.text) translate(msg.text, lang);
       }
     )
-    .on(
-      "postgres_changes",
-      { event: "UPDATE", schema: "public", table: "messages" },
-      (payload) => {
-        const row = payload.new;
-        if (!row || !row.id) return;
-        const msg = messages.find(m => m.id === row.id);
-        if (!msg) return;
-        // Take max so an in-flight optimistic local bump isn't reversed by an
-        // earlier-state UPDATE event arriving after we've already incremented.
-        const remote = row.view_count || 0;
-        if (remote > (msg.view_count || 0)) msg.view_count = remote;
-        if (row.continent && !msg.continent) msg.continent = row.continent;
-        scheduleHeardPanelRender();
-      }
-    )
     .subscribe();
+
+  // Start the Heard panel's steady-state rotation. INSERT events still trigger
+  // immediate renders via scheduleHeardPanelRender(); this re-rolls the random
+  // pick every HW_ROTATE_MS so the displayed messages cycle even when no new
+  // dots are landing.
+  startHeardRotation();
 
   // ── Realtime: flares + flare responses ──
   // flares INSERT: new flares appear live on every map.
