@@ -1890,6 +1890,19 @@
 <script>
 "use strict";
 
+// ───────────── DEV MODE ─────────────
+// `?dev=1` in the URL opts the page into dev-only console helpers
+// (resetMyDot, resetMyFlare). Normal visitors never see these. Useful
+// during incident response: "go to dropadot.world/?dev=1 and run …".
+const IS_DEV_MODE = new URLSearchParams(location.search).get("dev") === "1";
+if (IS_DEV_MODE) {
+  console.log(
+    "%c[dev mode]%c console helpers active: resetMyDot(), resetMyFlare()",
+    "color:#fff;background:#d85050;padding:2px 6px;border-radius:3px",
+    "color:#888"
+  );
+}
+
 // ───────────── SUPABASE ─────────────
 const SUPABASE_URL = "https://sxofvadbeznwgctdzbmk.supabase.co";
 const SUPABASE_KEY = "sb_publishable_j9BUYILtg52cqg0-CnioZQ_iFi5Z0Yx";
@@ -4204,28 +4217,30 @@ if (hasDroppedToday()) {
   setInterval(update, 60000);
 })();
 
-// ───────────── DEV RESET (console only) ─────────────
-window.resetMyDot = function () {
-  localStorage.removeItem(USER_KEY);
-  for (const m of messages) {
-    if (!m.mine) continue;
-    const marker = dotMarkers.get(m.id);
-    if (marker) {
-      dotLayer.removeLayer(marker);
-      dotMarkers.delete(m.id);
+// ───────────── DEV RESET (console only, gated by ?dev=1) ─────────────
+if (IS_DEV_MODE) {
+  window.resetMyDot = function () {
+    localStorage.removeItem(USER_KEY);
+    for (const m of messages) {
+      if (!m.mine) continue;
+      const marker = dotMarkers.get(m.id);
+      if (marker) {
+        dotLayer.removeLayer(marker);
+        dotMarkers.delete(m.id);
+      }
+      dotCanvas.removeDot(m.id);
     }
-    dotCanvas.removeDot(m.id);
-  }
-  messages = messages.filter(m => !m.mine);
-  clearPreview();
-  hint.classList.add("gone");
-  dropBtn.disabled = false;
-  syncDropPrompt();
-  scheduleHeardPanelRender();
-  syncFlareBtn();
-  console.log("%c[dev] resetMyDot: localStorage cleared, ready for a new drop", "color:#888");
-  return "ok";
-};
+    messages = messages.filter(m => !m.mine);
+    clearPreview();
+    hint.classList.add("gone");
+    dropBtn.disabled = false;
+    syncDropPrompt();
+    scheduleHeardPanelRender();
+    syncFlareBtn();
+    console.log("%c[dev] resetMyDot: localStorage cleared, ready for a new drop", "color:#888");
+    return "ok";
+  };
+}
 
 // ───────────── OUR MOOD ─────────────
 // Tap the globe button → modal listing today's moods by percentage,
@@ -5047,19 +5062,22 @@ document.addEventListener("keydown", (e) => {
 });
 
 // Dev helper — clears today's flare lock so you can shoot another for testing.
-window.resetMyFlare = function () {
-  localStorage.removeItem(FLARE_KEY);
-  for (const f of flares.filter(f => f.mine)) {
-    const m = flareMarkers.get(f.id);
-    if (m) flareLayer.removeLayer(m);
-    flareMarkers.delete(f.id);
-    flareCanvas.removeFlare(f.id);
-  }
-  flares = flares.filter(f => !f.mine);
-  syncFlareBtn();
-  console.log("%c[dev] resetMyFlare: localStorage cleared", "color:#ff9e3d");
-  return "ok";
-};
+// Gated by ?dev=1 so it doesn't ship to normal visitors.
+if (IS_DEV_MODE) {
+  window.resetMyFlare = function () {
+    localStorage.removeItem(FLARE_KEY);
+    for (const f of flares.filter(f => f.mine)) {
+      const m = flareMarkers.get(f.id);
+      if (m) flareLayer.removeLayer(m);
+      flareMarkers.delete(f.id);
+      flareCanvas.removeFlare(f.id);
+    }
+    flares = flares.filter(f => !f.mine);
+    syncFlareBtn();
+    console.log("%c[dev] resetMyFlare: localStorage cleared", "color:#ff9e3d");
+    return "ok";
+  };
+}
 
 // ───────────── BOOT ─────────────
 (async function boot() {
