@@ -5267,66 +5267,131 @@ if (IS_DEV_MODE) {
   // user actually opens them. Removed 2026-05-03; see comment above
   // `pretranslateAll`'s old definition site for context.
 
-  // ── Realtime: one channel, three INSERT handlers ──
+  // ── Realtime: one channel, three INSERT handlers, paused when tab hidden ──
   // Single combined channel for messages + flares + flare_responses INSERTs.
-  // Previously two separate channels (messages-realtime + flares-realtime),
-  // which doubled each visitor's WebSocket connection count against the free
-  // tier's 200-concurrent-connection cap. One channel fans events to all
-  // three handlers natively, no behavior change.
-  // No UPDATE subscriptions on any table — view-count tracking was removed
-  // (the Heard panel picks randomly weighted toward recent now, no DB
-  // round-trip needed) and flares/responses never had UPDATE flows.
-  sb.channel("hw-realtime")
-    .on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "messages" },
-      (payload) => {
-        const row = payload.new;
-        if (!row || !row.id) return;
-        // Skip if we already have this dot — covers the case where this client
-        // is the one that inserted it (we already added it to the map in submit()).
-        if (dotMarkers.has(row.id)) return;
-        const msg = rowToMsg(row, mineIds);
-        messages.push(msg);
-        addDotMarker(msg);
+  // (Previously two separate channels — combined to halve each visitor's
+  // WebSocket connection count against the free-tier 200-concurrent cap.)
+  //
+  // VISIBILITY-AWARE SUBSCRIPTION (added 2026-05-03):
+  // When the tab goes hidden, we tear down the channel so this client stops
+  // receiving INSERT broadcasts it can't show anyway. When the tab returns,
+  // we re-subscribe and run a small catch-up SELECT for anything that landed
+  // while we were gone (filtered by `lastRealtimeSeenAt > created_at`).
+  // Backgrounded tabs are a big chunk of any "concurrent users" peak, so
+  // dropping their realtime cost is real-money savings on the message meter.
+  //
+  // No UPDATE subscriptions on any table — view-count tracking was removed.
+
+  let realtimeChannel = null;
+  // High-water mark for catch-up. Initialized to today's UTC midnight so the
+  // first hidden→visible cycle (if any) can never reach back further than
+  // today's data window.
+  let lastRealtimeSeenAt = todayMidnightUTC();
+  function bumpSeen(row) {
+    if (row && row.created_at && row.created_at > lastRealtimeSeenAt) {
+      lastRealtimeSeenAt = row.created_at;
+    }
+  }
+
+  // De-dupe + apply helpers shared by the realtime handlers AND the catch-up
+  // SELECT. Each returns true if the row was newly applied so the caller can
+  // batch any side-effects (layer updates, panel re-render).
+  function applyMessageRow(row) {
+    if (!row || !row.id) return false;
+    if (dotMarkers.has(row.id)) return false;
+    const msg = rowToMsg(row, mineIds);
+    messages.push(msg);
+    addDotMarker(msg);
+    bumpSeen(row);
+    return true;
+  }
+  function applyFlareRow(row) {
+    if (!row || !row.id) return false;
+    if (flareMarkers.has(row.id)) return false;
+    const flare = rowToFlare(row);
+    flares.push(flare);
+    addFlareMarker(flare);
+    if (!map.hasLayer(flareLayer)) flareLayer.addTo(map);
+    bumpSeen(row);
+    return true;
+  }
+  function applyFlareResponseRow(row) {
+    if (!row || !row.id) return false;
+    const f = flares.find(x => x.id === row.flare_id);
+    if (!f) return false;
+    if (!f.responses) f.responses = [];
+    if (f.responses.some(r => r.id === row.id)) return false;
+    f.responses.push(row);
+    refreshFlareMarkerStyle(f);
+    bumpSeen(row);
+    return true;
+  }
+
+  function subscribeRealtime() {
+    return sb.channel("hw-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (p) => {
+        if (applyMessageRow(p.new)) {
+          updateLayers();
+          scheduleHeardPanelRender();
+        }
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "flares" }, (p) => {
+        applyFlareRow(p.new);
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "flare_responses" }, (p) => {
+        applyFlareResponseRow(p.new);
+      })
+      .subscribe();
+  }
+
+  // Catch up on rows created while we were unsubscribed. Runs in parallel
+  // for the three tables; messages/flares are applied before responses so a
+  // response can find its parent flare in the in-memory list.
+  async function catchUpSinceHidden() {
+    const since = lastRealtimeSeenAt;
+    try {
+      const [m, f, r] = await Promise.all([
+        sb.from("messages")
+          .select("id, text, lat, lng, loc, mood, created_at, continent")
+          .gt("created_at", since).order("created_at", { ascending: true }),
+        sb.from("flares")
+          .select("id, text, lat, lng, loc, continent, planter_id, planter_loc, created_at")
+          .gt("created_at", since).order("created_at", { ascending: true }),
+        sb.from("flare_responses")
+          .select("id, flare_id, responder_id, text, created_at")
+          .gt("created_at", since).order("created_at", { ascending: true })
+      ]);
+      let touched = false;
+      if (Array.isArray(m.data)) for (const row of m.data) touched = applyMessageRow(row) || touched;
+      if (Array.isArray(f.data)) for (const row of f.data) applyFlareRow(row);
+      if (Array.isArray(r.data)) for (const row of r.data) applyFlareResponseRow(row);
+      if (touched) {
         updateLayers();
         scheduleHeardPanelRender();
-        // No translation pre-warm — happens on-demand when a user opens
-        // this dot's popup.
       }
-    )
-    .on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "flares" },
-      (payload) => {
-        const row = payload.new;
-        if (!row || !row.id) return;
-        if (flareMarkers.has(row.id)) return;
-        const flare = rowToFlare(row);
-        flares.push(flare);
-        addFlareMarker(flare);
-        if (!map.hasLayer(flareLayer)) flareLayer.addTo(map);
-        // No translation pre-warm — happens on-demand when a user opens
-        // this flare's popup.
+    } catch (e) {
+      console.warn("[supabase] visibility catch-up failed:", e);
+    }
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      if (realtimeChannel) {
+        sb.removeChannel(realtimeChannel);
+        realtimeChannel = null;
       }
-    )
-    .on(
-      "postgres_changes",
-      { event: "INSERT", schema: "public", table: "flare_responses" },
-      (payload) => {
-        const row = payload.new;
-        if (!row || !row.id) return;
-        const f = flares.find(f => f.id === row.flare_id);
-        if (!f) return;
-        if (!f.responses) f.responses = [];
-        if (f.responses.some(r => r.id === row.id)) return;
-        f.responses.push(row);
-        refreshFlareMarkerStyle(f);
-        // No translation pre-warm — happens on-demand when a user opens
-        // the flare popup that holds this response.
-      }
-    )
-    .subscribe();
+    } else if (!realtimeChannel) {
+      // Subscribe FIRST, then catch up. This way any INSERT arriving during
+      // the catch-up SELECT is delivered via realtime; a later duplicate via
+      // the SELECT is filtered by the `if-already-have-this-id` guards in the
+      // apply helpers. The reverse order would leave a small gap window.
+      realtimeChannel = subscribeRealtime();
+      catchUpSinceHidden();
+    }
+  });
+
+  // Initial subscribe.
+  realtimeChannel = subscribeRealtime();
 
   // Start the Heard panel's steady-state rotation. INSERT events still trigger
   // immediate renders via scheduleHeardPanelRender(); this re-rolls the random
