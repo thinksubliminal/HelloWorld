@@ -511,6 +511,25 @@
   }
   #langBtn:hover { color: rgba(255, 255, 255, 0.7); }
 
+  /* Coffee link — Ko-fi support, quiet icon-only button matching the
+     translate (langBtn) treatment so the nav stays calm. Sits to the
+     left of THE RULES pill. */
+  #coffeeBtn {
+    background: transparent;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  #coffeeBtn:hover { color: rgba(255, 255, 255, 0.7); }
+  #coffeeBtn svg { width: 18px; height: 18px; display: block; }
+
   /* "The rules" pill — stroked border, no fill. Text color cycles through
      the mood palette via moodCycle (same animation the reset timer uses), so
      the two shine in lock-step — same 24s duration, both start at page load,
@@ -1704,6 +1723,14 @@
     <div id="title">Hello, World!</div>
   </div>
   <div class="nav-right">
+    <a id="coffeeBtn" href="https://ko-fi.com/thinksubliminal" target="_blank" rel="noopener noreferrer" aria-label="buy me a coffee">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 9h12v6a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V9z"/>
+        <path d="M16 11h2a3 3 0 0 1 0 6h-2"/>
+        <path d="M7 3.5v2"/>
+        <path d="M11 3.5v2"/>
+      </svg>
+    </a>
     <button id="helpBtn" type="button" aria-label="the rules">the rules</button>
     <button id="langBtn" type="button" aria-label="translation language" aria-haspopup="true" aria-expanded="false">
       <span class="nav-icon nav-icon-translate" aria-hidden="true"></span>
