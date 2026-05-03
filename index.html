@@ -3872,10 +3872,10 @@ function setLang(code) {
   // If the same language is picked again, nothing to re-render.
   if (previous === code) return;
 
-  // Warm the cache for every dot in the new language so future popups open
-  // pre-translated. Fire-and-forget — the open-popup path below handles the
-  // currently-visible one.
-  pretranslateAll(code);
+  // No eager pre-warm — translation is on-demand only. The currently-open
+  // popup is re-translated below; everything else translates when the user
+  // actually opens it. Removed 2026-05-03 after MyMemory rate-limited the
+  // dev IP from background pre-warm traffic.
 
   // Refresh any open flare popup so its question + responses re-render in
   // the new language. setContent() rebuilds via buildFlarePopup() which
@@ -4103,32 +4103,14 @@ function normalizeForCompare(s) {
   return (s || "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-// Warm the translation cache for every loaded message + flare in the
-// background, so popups open already-translated instead of swapping in a
-// few seconds later. Concurrency is capped at 3 to stay well under
-// MyMemory's per-IP quota and avoid request bursts.
-function pretranslateAll(lang) {
-  if (!lang || lang === "off") return;
-  const texts = [];
-  for (const m of messages) {
-    if (m.text && !getTranslatedNow(m.text, lang)) texts.push(m.text);
-  }
-  for (const f of flares) {
-    if (f.text && !getTranslatedNow(f.text, lang)) texts.push(f.text);
-    for (const r of (f.responses || [])) {
-      if (r.text && !getTranslatedNow(r.text, lang)) texts.push(r.text);
-    }
-  }
-  let i = 0;
-  const worker = async () => {
-    while (i < texts.length) {
-      if (getCurrentLang() !== lang) return; // user switched mid-flight
-      const t = texts[i++];
-      try { await translate(t, lang); } catch (_) {}
-    }
-  };
-  for (let n = 0; n < 3; n++) worker();
-}
+// pretranslateAll() was removed on 2026-05-03. Eagerly warming the cache
+// for every loaded message + flare burned through MyMemory's per-IP daily
+// quota fast (especially during dev/testing) and earned a flood of 429s.
+// Translation now happens strictly on-demand: dot popups translate when
+// opened, flare popups translate their question + responses when opened,
+// and the language switcher re-translates only the currently-open popup.
+// The translation cache (translatedSync / translationCache) still de-dupes
+// repeat opens of the same message.
 
 // ───────────── DROP BUTTON + GEOLOCATION ─────────────
 const dropBtn = document.getElementById("dropBtn");
@@ -5281,9 +5263,9 @@ if (IS_DEV_MODE) {
     }
   }
 
-  // Warm the translation cache for the user's chosen language now that all
-  // initial messages are loaded.
-  pretranslateAll(getCurrentLang());
+  // No translation pre-warming at boot — popups translate on-demand when the
+  // user actually opens them. Removed 2026-05-03; see comment above
+  // `pretranslateAll`'s old definition site for context.
 
   // ── Realtime: subscribe to inserts ──
   // INSERT: new dots from anyone in the world appear live on the map and panel.
@@ -5306,9 +5288,8 @@ if (IS_DEV_MODE) {
         addDotMarker(msg);
         updateLayers();
         scheduleHeardPanelRender();
-        // Warm the cache for this single new message in the current language.
-        const lang = getCurrentLang();
-        if (lang && lang !== "off" && msg.text) translate(msg.text, lang);
+        // No translation pre-warm — happens on-demand when a user opens
+        // this dot's popup.
       }
     )
     .subscribe();
@@ -5336,9 +5317,8 @@ if (IS_DEV_MODE) {
         flares.push(flare);
         addFlareMarker(flare);
         if (!map.hasLayer(flareLayer)) flareLayer.addTo(map);
-        // Warm the cache for this flare's question in the current language.
-        const lang = getCurrentLang();
-        if (lang && lang !== "off" && flare.text) translate(flare.text, lang);
+        // No translation pre-warm — happens on-demand when a user opens
+        // this flare's popup.
       }
     )
     .on(
@@ -5353,9 +5333,8 @@ if (IS_DEV_MODE) {
         if (f.responses.some(r => r.id === row.id)) return;
         f.responses.push(row);
         refreshFlareMarkerStyle(f);
-        // Warm the cache for the new response in the current language.
-        const lang = getCurrentLang();
-        if (lang && lang !== "off" && row.text) translate(row.text, lang);
+        // No translation pre-warm — happens on-demand when a user opens
+        // the flare popup that holds this response.
       }
     )
     .subscribe();
