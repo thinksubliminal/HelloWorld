@@ -3310,9 +3310,8 @@ function buildPopup(msg) {
 
   // First-time path: kick off the fetch and replace the text when it resolves.
   // No equality short-circuit — even if the translated string happens to match
-  // the original (Lingva auto-detect occasionally roundtrips slang/short text),
-  // we let the result through. The original stays only when the fetch yields
-  // null (network failure / both mirrors down).
+  // the original (MT engines occasionally roundtrip slang/short text), we let
+  // the result through. The original stays only when the fetch yields null.
   if (target && target !== "off" && msg.text && !cached) {
     const textEl = wrap.querySelector(".msg-text");
     translate(msg.text, target).then((t) => {
@@ -3836,7 +3835,7 @@ function setLang(code) {
 
   // Switching to a real language: paint cached translation if we have one,
   // otherwise fetch and replace when it resolves. No equality short-circuit:
-  // any non-empty Lingva response wins so legitimate translations of slang /
+  // any non-empty translation wins so legitimate translations of slang /
   // short text aren't suppressed when the engine roundtrips.
   const cached = getTranslatedNow(msg.text, code);
   const applyText = (t) => {
@@ -3943,149 +3942,55 @@ const translatedSync = new Map();
 function getTranslatedNow(text, targetLang) {
   return translatedSync.get(`${targetLang}::${text}`) || null;
 }
-// Lingva instances to try in order. lingva.ml is the official one; the others
-// are community-hosted mirrors running the same software with identical APIs.
-// If the primary is slow/down, we try the next one. Per-attempt timeout: 2s.
-// Order is by reputation/stability; reorder if we see better results from a
-// different mirror over time.
-const LINGVA_HOSTS = [
-  "https://lingva.ml",
-  "https://lingva.lunar.icu"
-];
-const LINGVA_TIMEOUT_MS = 6000;
+// Translation backend: MyMemory (https://mymemory.translated.net).
+// Free, CORS-enabled, no signup, no API key. Per-IP rate limit is 5,000
+// chars/day per visitor — quota is per-user, not app-wide. 500-byte limit
+// per request, fine for individual dropadot messages.
+// Source defaults to "Autodetect" — MyMemory's documented pseudo-code that
+// triggers server-side language detection. Real ISO codes (e.g. "es") still
+// work if a caller wants to assert the source explicitly.
+const MYMEMORY_ENDPOINT = "https://api.mymemory.translated.net/get";
+const DEFAULT_SOURCE_LANG = "Autodetect";
 
-// ─── Translation circuit breaker ───
-// Lingva's public mirrors all proxy through the same Google Translate
-// scraping backend. When Google breaks that backend (which happens
-// every few weeks), every public mirror returns 500 simultaneously and
-// translation goes dark across the board. The breaker stops us from
-// hammering dead mirrors and flooding the console with failure logs
-// during those windows.
-//
-// State machine:
-//   closed     normal operation; failures tracked in a 60s window
-//   open       all translate() calls return null without any network
-//              call until the cooldown elapses
-//   half-open  cooldown elapsed; one probe request is allowed through.
-//              Probe success → closed. Probe failure → open with a
-//              fresh cooldown.
-const TRANSLATE_BREAKER_FAIL_THRESHOLD = 5;
-const TRANSLATE_BREAKER_FAIL_WINDOW_MS = 60_000;
-const TRANSLATE_BREAKER_COOLDOWN_MS = 10 * 60_000;
-const translateBreaker = {
-  state: "closed",
-  failureTimes: [],
-  openedAt: 0,
-  probeInFlight: false,
-};
-
-// Returns true if the caller is permitted to attempt a network request.
-// Has the side effect of promoting open→half-open once cooldown elapses.
-function translateBreakerAllowed() {
-  const now = Date.now();
-  if (translateBreaker.state === "open") {
-    if (now - translateBreaker.openedAt < TRANSLATE_BREAKER_COOLDOWN_MS) {
-      return false;
-    }
-    translateBreaker.state = "half-open";
-    translateBreaker.probeInFlight = false;
-    console.log("[translate:breaker] probing");
+async function fetchMyMemory(text, targetLang, sourceLang) {
+  const url = `${MYMEMORY_ENDPOINT}?q=${encodeURIComponent(text)}`
+    + `&langpair=${encodeURIComponent(sourceLang + "|" + targetLang)}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  const data = await r.json();
+  const status = data && data.responseStatus;
+  // Same-language no-op: when Autodetect resolves to the target language,
+  // MyMemory returns 403 "PLEASE SELECT TWO DISTINCT LANGUAGES". For our
+  // purposes the original text already is the right answer, so we treat it
+  // as success and skip the warn.
+  if ((status === 403 || status === "403")
+      && typeof data.responseDetails === "string"
+      && /DISTINCT LANGUAGES/i.test(data.responseDetails)) {
+    return sanitizeProfanity(text);
   }
-  if (translateBreaker.state === "half-open") {
-    if (translateBreaker.probeInFlight) return false;
-    translateBreaker.probeInFlight = true;
-    return true;
+  if (status !== 200 && status !== "200") {
+    throw new Error("responseStatus " + status);
   }
-  return true;
+  const t = data && data.responseData && data.responseData.translatedText;
+  if (typeof t !== "string" || !t.trim()) return null;
+  // Same write-side rule applies to translation results — a clean source
+  // shouldn't surface a slur via a quirky machine translation.
+  return sanitizeProfanity(t);
 }
 
-function translateBreakerSuccess() {
-  if (translateBreaker.state !== "closed") {
-    console.log("[translate:breaker] reset");
-  }
-  translateBreaker.state = "closed";
-  translateBreaker.failureTimes = [];
-  translateBreaker.probeInFlight = false;
-  translateBreaker.openedAt = 0;
-}
-
-function translateBreakerFailure() {
-  const now = Date.now();
-  if (translateBreaker.state === "half-open") {
-    // Probe failed → re-open with a fresh cooldown.
-    translateBreaker.state = "open";
-    translateBreaker.openedAt = now;
-    translateBreaker.probeInFlight = false;
-    return;
-  }
-  // closed: track within the rolling window and trip if threshold met.
-  translateBreaker.failureTimes.push(now);
-  while (
-    translateBreaker.failureTimes.length &&
-    now - translateBreaker.failureTimes[0] > TRANSLATE_BREAKER_FAIL_WINDOW_MS
-  ) {
-    translateBreaker.failureTimes.shift();
-  }
-  if (translateBreaker.failureTimes.length >= TRANSLATE_BREAKER_FAIL_THRESHOLD) {
-    translateBreaker.state = "open";
-    translateBreaker.openedAt = now;
-    translateBreaker.failureTimes = [];
-    console.log("[translate:breaker] tripped");
-  }
-}
-
-async function fetchLingva(host, targetLang, text) {
-  const url = host + "/api/v1/auto/"
-    + encodeURIComponent(targetLang) + "/"
-    + encodeURIComponent(text);
-  // AbortController gives us a real timeout — fetch() alone has no built-in one,
-  // so a hung server would just make us wait forever otherwise.
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), LINGVA_TIMEOUT_MS);
-  try {
-    const r = await fetch(url, { signal: ctrl.signal });
-    if (!r.ok) throw new Error("translate fetch failed: " + r.status);
-    const data = await r.json();
-    const t = data && data.translation;
-    if (typeof t !== "string" || !t.trim()) return null;
-    // Same write-side rule applies to translation results — a clean source
-    // shouldn't surface a slur via a quirky machine translation.
-    return sanitizeProfanity(t);
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-function translate(text, targetLang) {
+function translate(text, targetLang, sourceLang = DEFAULT_SOURCE_LANG) {
   const key = `${targetLang}::${text}`;
   if (translationCache.has(key)) return translationCache.get(key);
-  // Breaker check before any network work — if tripped, every caller
-  // gets null immediately and the popup falls back to source text.
-  if (!translateBreakerAllowed()) return Promise.resolve(null);
   const p = (async () => {
-    let networkFailures = 0;
-    // Try each host in order. First success wins. If all fail, return null
-    // and the caller falls back to displaying the original text.
-    for (const host of LINGVA_HOSTS) {
-      try {
-        const result = await fetchLingva(host, targetLang, text);
-        if (result) {
-          translatedSync.set(key, result);
-          translateBreakerSuccess();
-          return result;
-        }
-        // result was null (200 OK with empty translation) — degenerate
-        // input, not a network failure. Don't count toward the breaker.
-      } catch (e) {
-        networkFailures++;
-        // Aborted (timeout) or network error — try the next mirror silently.
-        console.warn(`[translate] ${host} failed:`, e.name || e.message);
+    try {
+      const result = await fetchMyMemory(text, targetLang, sourceLang);
+      if (result) {
+        translatedSync.set(key, result);
+        return result;
       }
+    } catch (e) {
+      console.warn("[translate:mymemory] failed:", e.name || e.message);
     }
-    // Reached end with no usable translation. Only count toward the
-    // breaker if at least one host failed with an actual network /
-    // upstream error (not just empty results).
-    if (networkFailures > 0) translateBreakerFailure();
     translationCache.delete(key);
     return null;
   })();
@@ -4099,8 +4004,8 @@ function normalizeForCompare(s) {
 
 // Warm the translation cache for every loaded message + flare in the
 // background, so popups open already-translated instead of swapping in a
-// few seconds later. Concurrency is capped so we don't fire dozens of
-// parallel requests at the (already slow) Lingva mirrors.
+// few seconds later. Concurrency is capped at 3 to stay well under
+// MyMemory's per-IP quota and avoid request bursts.
 function pretranslateAll(lang) {
   if (!lang || lang === "off") return;
   const texts = [];
@@ -4648,7 +4553,7 @@ function buildFlarePopup(flare) {
 
   // Translation state for this build. We paint cached translations (or the
   // original) on first render, then async-replace each text element when
-  // the Lingva fetch resolves. Same pattern dot popups use.
+  // the translation fetch resolves. Same pattern dot popups use.
   const target = getCurrentLang();
   const wantTranslate = target && target !== "off";
   const optimistic = (text) => {
@@ -4726,8 +4631,8 @@ function buildFlarePopup(flare) {
 
   // Async-replace translation for the question + each response. Mirrors the
   // dot popup pattern — original (or cached) painted on first render, real
-  // translation swaps in when Lingva resolves. No equality short-circuit:
-  // any non-empty result wins. If both mirrors fail, original stays.
+  // translation swaps in when the fetch resolves. No equality short-circuit:
+  // any non-empty result wins. If the fetch fails, original stays.
   if (wantTranslate) {
     const replaceWhenReady = (el, text) => {
       if (!el || !text) return;
