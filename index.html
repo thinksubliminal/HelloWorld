@@ -1694,27 +1694,27 @@
     transition: transform 0.32s cubic-bezier(0.32, 0.72, 0, 1);
     will-change: transform;
   }
+  /* Mobile slide mirrors desktop's .hw-row layout: dot+continent on a top
+     row, message wrapping full-width below. Tight 2px vertical gap so the
+     dot/continent reads as a header for the message it labels. */
   .hw-car-slide {
     flex: 0 0 100%;
     min-width: 0;
     display: flex;
-    align-items: flex-start;
-    gap: 9px;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .hw-car-cont-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
   .hw-car-color {
     width: 7px; height: 7px;
     border-radius: 50%;
     flex-shrink: 0;
-    margin-top: 5px;
     background: var(--c, #999);
     box-shadow: 0 0 5px var(--c-soft, rgba(255, 255, 255, 0.2));
-  }
-  .hw-car-text {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
   }
   .hw-car-cont {
     font-size: 9px;
@@ -3535,11 +3535,11 @@ function renderCarousel(entries) {
     const slide = document.createElement("div");
     slide.className = "hw-car-slide";
     slide.innerHTML =
-      `<span class="hw-car-color" style="--c:${color}; --c-soft:${soft};"></span>` +
-      `<div class="hw-car-text">` +
-        `<div class="hw-car-cont">${escapeHtml(msg.continent || "")}</div>` +
-        `<div class="hw-car-msg">${escapeHtml(msg.text || "")}</div>` +
-      `</div>`;
+      `<div class="hw-car-cont-line">` +
+        `<span class="hw-car-color" style="--c:${color}; --c-soft:${soft};"></span>` +
+        `<span class="hw-car-cont">${escapeHtml(msg.continent || "")}</span>` +
+      `</div>` +
+      `<div class="hw-car-msg">${escapeHtml(msg.text || "")}</div>`;
     slide.addEventListener("click", () => focusDot(msg));
     track.appendChild(slide);
   }
