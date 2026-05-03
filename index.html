@@ -5267,13 +5267,16 @@ if (IS_DEV_MODE) {
   // user actually opens them. Removed 2026-05-03; see comment above
   // `pretranslateAll`'s old definition site for context.
 
-  // ── Realtime: subscribe to inserts ──
-  // INSERT: new dots from anyone in the world appear live on the map and panel.
-  // No UPDATE subscription — view-count tracking was removed (the Heard panel
-  // now picks randomly weighted toward recent, no DB round-trip needed). That
-  // change cuts realtime broadcast volume by ~80% and keeps us inside the
-  // free tier without sacrificing the live-map magic.
-  sb.channel("messages-realtime")
+  // ── Realtime: one channel, three INSERT handlers ──
+  // Single combined channel for messages + flares + flare_responses INSERTs.
+  // Previously two separate channels (messages-realtime + flares-realtime),
+  // which doubled each visitor's WebSocket connection count against the free
+  // tier's 200-concurrent-connection cap. One channel fans events to all
+  // three handlers natively, no behavior change.
+  // No UPDATE subscriptions on any table — view-count tracking was removed
+  // (the Heard panel picks randomly weighted toward recent now, no DB
+  // round-trip needed) and flares/responses never had UPDATE flows.
+  sb.channel("hw-realtime")
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "messages" },
@@ -5292,20 +5295,6 @@ if (IS_DEV_MODE) {
         // this dot's popup.
       }
     )
-    .subscribe();
-
-  // Start the Heard panel's steady-state rotation. INSERT events still trigger
-  // immediate renders via scheduleHeardPanelRender(); this re-rolls the random
-  // pick every HW_ROTATE_MS so the displayed messages cycle even when no new
-  // dots are landing.
-  startHeardRotation();
-
-  // ── Realtime: flares + flare responses ──
-  // flares INSERT: new flares appear live on every map.
-  // flare_responses INSERT: each new reply pushes onto the flare's response
-  // list so the marker switches to .answered (if first reply) and any open
-  // popup re-renders to include the new response.
-  sb.channel("flares-realtime")
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "flares" },
@@ -5338,6 +5327,12 @@ if (IS_DEV_MODE) {
       }
     )
     .subscribe();
+
+  // Start the Heard panel's steady-state rotation. INSERT events still trigger
+  // immediate renders via scheduleHeardPanelRender(); this re-rolls the random
+  // pick every HW_ROTATE_MS so the displayed messages cycle even when no new
+  // dots are landing.
+  startHeardRotation();
 })();
 </script>
 </body>
