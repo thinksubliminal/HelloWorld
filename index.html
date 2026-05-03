@@ -3954,6 +3954,86 @@ const LINGVA_HOSTS = [
 ];
 const LINGVA_TIMEOUT_MS = 6000;
 
+// ─── Translation circuit breaker ───
+// Lingva's public mirrors all proxy through the same Google Translate
+// scraping backend. When Google breaks that backend (which happens
+// every few weeks), every public mirror returns 500 simultaneously and
+// translation goes dark across the board. The breaker stops us from
+// hammering dead mirrors and flooding the console with failure logs
+// during those windows.
+//
+// State machine:
+//   closed     normal operation; failures tracked in a 60s window
+//   open       all translate() calls return null without any network
+//              call until the cooldown elapses
+//   half-open  cooldown elapsed; one probe request is allowed through.
+//              Probe success → closed. Probe failure → open with a
+//              fresh cooldown.
+const TRANSLATE_BREAKER_FAIL_THRESHOLD = 5;
+const TRANSLATE_BREAKER_FAIL_WINDOW_MS = 60_000;
+const TRANSLATE_BREAKER_COOLDOWN_MS = 10 * 60_000;
+const translateBreaker = {
+  state: "closed",
+  failureTimes: [],
+  openedAt: 0,
+  probeInFlight: false,
+};
+
+// Returns true if the caller is permitted to attempt a network request.
+// Has the side effect of promoting open→half-open once cooldown elapses.
+function translateBreakerAllowed() {
+  const now = Date.now();
+  if (translateBreaker.state === "open") {
+    if (now - translateBreaker.openedAt < TRANSLATE_BREAKER_COOLDOWN_MS) {
+      return false;
+    }
+    translateBreaker.state = "half-open";
+    translateBreaker.probeInFlight = false;
+    console.log("[translate:breaker] probing");
+  }
+  if (translateBreaker.state === "half-open") {
+    if (translateBreaker.probeInFlight) return false;
+    translateBreaker.probeInFlight = true;
+    return true;
+  }
+  return true;
+}
+
+function translateBreakerSuccess() {
+  if (translateBreaker.state !== "closed") {
+    console.log("[translate:breaker] reset");
+  }
+  translateBreaker.state = "closed";
+  translateBreaker.failureTimes = [];
+  translateBreaker.probeInFlight = false;
+  translateBreaker.openedAt = 0;
+}
+
+function translateBreakerFailure() {
+  const now = Date.now();
+  if (translateBreaker.state === "half-open") {
+    // Probe failed → re-open with a fresh cooldown.
+    translateBreaker.state = "open";
+    translateBreaker.openedAt = now;
+    translateBreaker.probeInFlight = false;
+    return;
+  }
+  // closed: track within the rolling window and trip if threshold met.
+  translateBreaker.failureTimes.push(now);
+  while (
+    translateBreaker.failureTimes.length &&
+    now - translateBreaker.failureTimes[0] > TRANSLATE_BREAKER_FAIL_WINDOW_MS
+  ) {
+    translateBreaker.failureTimes.shift();
+  }
+  if (translateBreaker.failureTimes.length >= TRANSLATE_BREAKER_FAIL_THRESHOLD) {
+    translateBreaker.state = "open";
+    translateBreaker.openedAt = now;
+    translateBreaker.failureTimes = [];
+    console.log("[translate:breaker] tripped");
+  }
+}
+
 async function fetchLingva(host, targetLang, text) {
   const url = host + "/api/v1/auto/"
     + encodeURIComponent(targetLang) + "/"
@@ -3979,7 +4059,11 @@ async function fetchLingva(host, targetLang, text) {
 function translate(text, targetLang) {
   const key = `${targetLang}::${text}`;
   if (translationCache.has(key)) return translationCache.get(key);
+  // Breaker check before any network work — if tripped, every caller
+  // gets null immediately and the popup falls back to source text.
+  if (!translateBreakerAllowed()) return Promise.resolve(null);
   const p = (async () => {
+    let networkFailures = 0;
     // Try each host in order. First success wins. If all fail, return null
     // and the caller falls back to displaying the original text.
     for (const host of LINGVA_HOSTS) {
@@ -3987,14 +4071,21 @@ function translate(text, targetLang) {
         const result = await fetchLingva(host, targetLang, text);
         if (result) {
           translatedSync.set(key, result);
+          translateBreakerSuccess();
           return result;
         }
+        // result was null (200 OK with empty translation) — degenerate
+        // input, not a network failure. Don't count toward the breaker.
       } catch (e) {
+        networkFailures++;
         // Aborted (timeout) or network error — try the next mirror silently.
-        // Logging for diagnostics during development; safe to remove later.
         console.warn(`[translate] ${host} failed:`, e.name || e.message);
       }
     }
+    // Reached end with no usable translation. Only count toward the
+    // breaker if at least one host failed with an actual network /
+    // upstream error (not just empty results).
+    if (networkFailures > 0) translateBreakerFailure();
     translationCache.delete(key);
     return null;
   })();
