@@ -1145,6 +1145,51 @@
     image-rendering: -webkit-optimize-contrast;
   }
 
+  /* ── Message in a bottle ──
+     A single bottle drifts in an ocean each UTC hour. Same hit-area trick
+     as .dot-wrap and .flare-wrap: invisible oversized wrapper, visible
+     bottle centered inside. The halo behind the bottle slowly cycles
+     through every mood color in CONFIG order, so the bottle visually
+     belongs to the whole emotional palette of the map (it isn't owned by
+     any one mood — anyone is welcome to find it). */
+  .bottle-wrap {
+    background: transparent !important;
+    border: none !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  @media (min-width: 640px) {
+    .bottle-wrap { pointer-events: none; }
+    .bottle-wrap > .bottle { pointer-events: auto; }
+  }
+  .bottle {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    position: relative;
+    /* The bottle SVG fills `currentColor`, and `color` is animated by
+       `moodCycle` — so the silhouette cycles through the full mood
+       palette in lock-step with the THE RULES button on the homepage
+       (same 24s linear animation, same key colors). */
+    color: #F5B842;
+    transition: opacity 0.5s ease;
+    animation: moodCycle 24s linear infinite;
+  }
+  .bottle.fading { opacity: 0; }
+  .bottle svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+  }
+
+  /* The bottle popup intentionally has NO bespoke styling. It inherits the
+     same .leaflet-popup-content-wrapper / .leaflet-popup-tip /
+     .leaflet-popup-content rules used by mood dot popups, and its content
+     reuses the same .msg-text / .msg-meta / .msg-loc classes — so any
+     future change to dot popup styling automatically carries over. */
+
   /* Flare hover preview (desktop only) */
   .leaflet-tooltip.flare-tooltip {
     background: rgba(40, 22, 8, 0.92);
@@ -1995,6 +2040,124 @@ const MOODS = [
   { id: "grateful", name: "grateful", color: "#ED7AA0", emoji: "🙏" }
 ];
 const MOOD_BY_ID = Object.fromEntries(MOODS.map(m => [m.id, m]));
+
+// ───────────── MESSAGE IN A BOTTLE ─────────────
+// A single bottle floats in an ocean somewhere on the map. Its location and
+// message change every UTC hour and are picked deterministically from a
+// daily seeded shuffle, so every visitor worldwide sees the same bottle in
+// the same place during the same UTC hour, and no message or location
+// repeats within a single UTC day.
+//
+// Pure client-side: zero database writes, zero realtime traffic, no impact
+// on continent counts, the Heard panel, dot/flare totals, or quotas.
+const BOTTLE_MESSAGES = [
+  "You're doing better than you think. Keep going.",
+  "Whatever you're carrying today, you don't have to carry it perfectly. Just keep moving with it.",
+  "Whatever today asked of you, you showed up. That matters more than you think.",
+  "The fact that you're here, looking at a map, opening a bottle, that's enough for today.",
+  "Somebody in the world is rooting for you right now. You don't know them. They don't know you. It's still true.",
+  "Be soft with yourself this week. You've been working harder than anyone sees.",
+  "There is so much left to live. Don't forget that on the hard days.",
+  "You found this. That means you were paying attention. Stay curious. It's one of the best things about being alive.",
+  "The world is bigger and stranger and kinder than the news makes it sound. You're proof.",
+  "Drink some water. Stretch. Look out a window. Small things help more than they should.",
+  "You're allowed to rest. You're allowed to be tired. You're allowed to not know yet.",
+  "Whoever you used to be, whoever you are now, whoever you're becoming, all of it counts.",
+  "Someone out there needs exactly the kind of person you are. Don't quiet yourself down too much.",
+  "Tell someone you love them today if you can. It always lands better than you think it will.",
+  "You are not behind. There is no schedule. Everyone is figuring it out as they go.",
+  "The version of you from five years ago would be amazed by the version of you today.",
+  "Forgive yourself for something small. Then maybe something bigger tomorrow.",
+  "Keep going. Even slowly. Especially slowly.",
+  "There is no one in the world exactly like you. That sounds like a small thing but it isn't.",
+  "You don't have to be productive today to be worth something today.",
+  "The people you love are luckier than they probably tell you.",
+  "If today is hard, tomorrow is allowed to be easier. Sometimes it just is.",
+  "Look at where this bottle washed up. You found it from across the world. That's a small kind of magic.",
+  "Try to be gentle with the next person you talk to. They might be having a day.",
+  "You are not your worst thoughts about yourself. You never were.",
+  "Whatever it is, it's okay to want it. Even the big things. Especially the big things.",
+  "There are people you haven't met yet who will love you. Stay around for them.",
+  "Today is not your whole life. It's just today.",
+  "You were made for more than getting through the week. Don't forget what more feels like.",
+  "Whoever you are, wherever you are, thank you for being here.",
+  "The hardest part is usually not as far away from being over as it feels.",
+  "You have changed people without knowing it. You probably still are.",
+  "It's okay to take the long way home today.",
+  "Whatever you're avoiding, it might be smaller than it looks. Take one small step toward it.",
+  "Some days are just for surviving. Those days still count.",
+  "The world is full of people quietly hoping things work out for you.",
+  "You've gotten through every hard day so far. That's a track record worth trusting.",
+  "Eat something. Go outside if you can. The basics keep working even when nothing else does.",
+  "Whoever told you you're too much was wrong. So was whoever told you you're not enough.",
+  "There is time. There is more time than the noise wants you to think.",
+  "Be honest with one person today, even if it's just yourself.",
+  "The good days are coming back around. They always do.",
+  "You're allowed to change your mind. About anything. About everything.",
+  "Someone you've never met is going to be glad you stayed.",
+  "The work you do quietly, that nobody sees, still counts. Maybe most of all.",
+  "Wherever you are right now, take one slow breath. That's it. That's the whole thing.",
+  "You don't have to earn the right to take up space. You already have it.",
+  "The bottle found you today. That means something, even if it's small."
+];
+
+// Open-ocean coordinates only. Each spot is a real water point, hand-picked
+// to avoid coastal points that risk landing on land at any zoom level.
+// Covers all major water bodies so the bottle visits the whole world over a
+// UTC day.
+const BOTTLE_OCEAN_LOCATIONS = [
+  { lat:  30.0, lng: -140.0, name: "the North Pacific" },
+  { lat: -25.0, lng: -130.0, name: "the South Pacific" },
+  { lat:   0.0, lng: -160.0, name: "the Central Pacific" },
+  { lat:  35.0, lng:  -45.0, name: "the North Atlantic" },
+  { lat:  28.0, lng:  -65.0, name: "the Sargasso Sea" },
+  { lat: -25.0, lng:  -15.0, name: "the South Atlantic" },
+  { lat: -45.0, lng:  -30.0, name: "the South Atlantic" },
+  { lat:  50.0, lng:  -30.0, name: "the North Atlantic" },
+  { lat: -10.0, lng:   80.0, name: "the Indian Ocean" },
+  { lat: -35.0, lng:   90.0, name: "the South Indian Ocean" },
+  { lat:  15.0, lng:   65.0, name: "the Arabian Sea" },
+  { lat:  13.0, lng:   88.0, name: "the Bay of Bengal" },
+  { lat:  17.0, lng:  -75.0, name: "the Caribbean Sea" },
+  { lat:  25.0, lng:  -90.0, name: "the Gulf of Mexico" },
+  { lat:  36.0, lng:   17.0, name: "the Ionian Sea" },
+  { lat:  39.0, lng:    5.0, name: "the Mediterranean" },
+  { lat:  43.0, lng:   34.0, name: "the Black Sea" },
+  { lat:  56.0, lng:    3.0, name: "the North Sea" },
+  { lat:  58.0, lng:   19.0, name: "the Baltic Sea" },
+  { lat:  40.0, lng:  135.0, name: "the Sea of Japan" },
+  { lat:  15.0, lng:  115.0, name: "the South China Sea" },
+  { lat:  18.0, lng:  135.0, name: "the Philippine Sea" },
+  { lat: -38.0, lng:  160.0, name: "the Tasman Sea" },
+  { lat: -17.0, lng:  155.0, name: "the Coral Sea" },
+  { lat:  -8.0, lng:  154.0, name: "the Solomon Sea" },
+  { lat:  -5.0, lng:  127.0, name: "the Banda Sea" },
+  { lat:  58.0, lng: -175.0, name: "the Bering Sea" },
+  { lat:  55.0, lng:  150.0, name: "the Sea of Okhotsk" },
+  { lat:  56.0, lng: -145.0, name: "the Gulf of Alaska" },
+  { lat:  60.0, lng:  -55.0, name: "the Labrador Sea" },
+  { lat:  68.0, lng:    5.0, name: "the Norwegian Sea" },
+  { lat:  76.0, lng:   -8.0, name: "the Greenland Sea" },
+  { lat:  85.0, lng:    0.0, name: "the Arctic Ocean" },
+  { lat:  80.0, lng: -150.0, name: "the Arctic Ocean" },
+  { lat:  20.0, lng:   38.0, name: "the Red Sea" },
+  { lat:  27.0, lng:   51.0, name: "the Persian Gulf" },
+  { lat: -60.0, lng:  -60.0, name: "the Drake Passage" },
+  { lat: -65.0, lng:    0.0, name: "the Southern Ocean" },
+  { lat: -60.0, lng:   90.0, name: "the Southern Ocean" },
+  { lat: -65.0, lng: -120.0, name: "the Southern Ocean" }
+];
+
+// Inline SVG for the bottle illustration. Source: assets/message-in-a-bottle.svg.
+// All paths fill `currentColor` so we can drive the color from CSS instead of
+// hardcoding it in the SVG markup.
+const BOTTLE_SVG = `<svg viewBox="0 0 246 566" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <g transform="matrix(0.938931,0,0,1.233115,-99.526718,22.196078)">
+    <g transform="matrix(1.56774,0,0,1.193725,-122.312381,-86.913545)">
+      <path fill="currentColor" d="M284.325,171.617L284.343,171.617C295.118,177.736 301.693,188.283 301.693,199.579L301.693,411.362C301.693,425.831 289.958,437.485 275.57,437.485L182.812,437.485C168.343,437.485 156.689,425.832 156.689,411.362L156.689,199.579C156.689,188.3 163.183,177.737 173.958,171.617L202.067,155.536L202.067,128.534L201.839,128.534C196.809,128.534 192.757,124.481 192.757,119.533L192.757,105.357C192.757,102.118 195.328,99.53 198.583,99.53L259.683,99.53C262.922,99.53 265.51,102.118 265.51,105.357L265.51,119.533C265.51,124.481 261.522,128.534 256.509,128.534L256.216,128.534L256.216,155.536L284.325,171.617ZM215.204,91.733L215.188,91.733C211.939,91.726 209.132,89.547 208.466,86.525L204.917,70.347C204.022,66.294 207.294,62.485 211.656,62.485L246.665,62.485C251.027,62.485 254.299,66.294 253.404,70.347L249.855,86.525C249.188,89.569 246.389,91.733 243.117,91.733L215.204,91.733Z"/>
+    </g>
+  </g>
+</svg>`;
 
 // ───────────── CITY DATABASE (for nearest-city labeling) ─────────────
 const CITIES = [
@@ -3365,6 +3528,185 @@ function rebuildDots() {
   for (const m of messages) addDotMarker(m);
 }
 
+// ───────────── MESSAGE IN A BOTTLE ─────────────
+// A single bottle floats in an ocean somewhere on the map, changing location
+// and message at the top of every UTC hour. Selection is fully deterministic
+// from the UTC date + hour, so every visitor worldwide sees the same bottle
+// in the same place during the same UTC hour, and no message or location
+// repeats within a single UTC day.
+//
+// PURELY CLIENT-SIDE. Does not write to Supabase, does not subscribe to
+// realtime, does not appear in messages/flares tables, does not affect
+// continent counts, the Heard Around the World panel, or any analytics.
+const bottleLayer = L.layerGroup();
+let bottleMarker = null;
+let bottleHourTimer = null;
+let bottleCurrent = null;  // { hour, dateStr, message, location }
+
+// FNV-1a 32-bit hash of a string. Stable, no dependency, plenty of bits for
+// our use case (seeding a per-day shuffle of 48 messages and 40 locations).
+function bottleHashSeed(s) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h >>> 0;
+}
+
+// Mulberry32 PRNG. Same seed → same sequence in every browser, every device.
+function bottleMulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a = (a + 0x6D2B79F5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function bottleSeededShuffle(arr, rng) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+  }
+  return a;
+}
+
+function bottleUtcDateString(d) {
+  return d.getUTCFullYear() + "-" +
+    String(d.getUTCMonth() + 1).padStart(2, "0") + "-" +
+    String(d.getUTCDate()).padStart(2, "0");
+}
+
+// At UTC midnight we shuffle both arrays with date-seeded RNGs and assign
+// the first 24 entries to the 24 hours of that day. Hour N reads from
+// position N. Two distinct seeds (one for messages, one for locations) so
+// they don't lock-step — otherwise message #i and location #i would always
+// pair together, which would feel less alive over multiple days.
+function getBottleForHour(date) {
+  const dateStr = bottleUtcDateString(date);
+  const hour = date.getUTCHours();
+  const seedBase = bottleHashSeed(dateStr);
+  const rngMessages = bottleMulberry32(seedBase);
+  const rngLocations = bottleMulberry32((seedBase ^ 0x9E3779B9) >>> 0);
+  const shuffledMessages = bottleSeededShuffle(BOTTLE_MESSAGES, rngMessages);
+  const shuffledLocations = bottleSeededShuffle(BOTTLE_OCEAN_LOCATIONS, rngLocations);
+  return {
+    hour,
+    dateStr,
+    message: shuffledMessages[hour % shuffledMessages.length],
+    location: shuffledLocations[hour % shuffledLocations.length]
+  };
+}
+
+// Reuses the same .msg-text / .msg-meta / .msg-loc classes the dot popup
+// uses, so the bottle popup matches dot popups exactly — same frosted
+// background, border, padding, corner radius, drop shadow, typography. The
+// only difference is the content (no mood pill; eyebrow reads "Drifted
+// into [ocean]"). If dot popup styling changes, this picks the change up
+// automatically.
+function buildBottlePopup(bottle) {
+  const wrap = document.createElement("div");
+  wrap.innerHTML =
+    `<div class="msg-text">${escapeHtml(bottle.message)}</div>` +
+    `<div class="msg-meta">` +
+      `<span class="msg-loc">Drifted into ${escapeHtml(bottle.location.name)}</span>` +
+    `</div>`;
+  return wrap;
+}
+
+function bottleIconHtml() {
+  return `<div class="bottle" aria-hidden="true">${BOTTLE_SVG}</div>`;
+}
+
+// Place the bottle for the current UTC hour. If the marker already exists,
+// fade it out at the old position, move it, and fade it back in (~500ms
+// each side) so the hourly hop feels like drift, not a teleport.
+//
+// If the user has the popup open when an hour rolls over, defer the move
+// until they close the popup — the spec calls for the open popup to keep
+// showing its own bottle until dismissed.
+function placeBottle() {
+  const bottle = getBottleForHour(new Date());
+  const previous = bottleCurrent;
+  bottleCurrent = bottle;
+
+  if (!bottleMarker) {
+    const icon = L.divIcon({
+      className: "bottle-wrap",
+      html: bottleIconHtml(),
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+    bottleMarker = L.marker([bottle.location.lat, bottle.location.lng], {
+      icon,
+      riseOnHover: true,
+      keyboard: false
+    });
+    // The popup re-reads bottleCurrent on every open, so it always shows
+    // the message/location for whatever hour it is *right now* (not the
+    // hour at which the marker was last moved). Same options as the dot
+    // popup so the panel sizing and frame match exactly.
+    bottleMarker.bindPopup(() => buildBottlePopup(bottleCurrent), {
+      closeButton: false,
+      minWidth: 220,
+      maxWidth: 220,
+      autoPan: false
+    });
+    bottleLayer.addLayer(bottleMarker);
+    return;
+  }
+
+  // Marker exists; only move it if the hour actually changed.
+  if (previous &&
+      previous.hour === bottle.hour &&
+      previous.dateStr === bottle.dateStr) {
+    return;
+  }
+
+  // Defer if popup is open — the user is reading; don't yank the bottle out
+  // from under them. Resume the move next time they close it.
+  if (bottleMarker.isPopupOpen()) {
+    bottleMarker.once("popupclose", () => placeBottle());
+    return;
+  }
+
+  const el = bottleMarker.getElement();
+  const inner = el && el.querySelector(".bottle");
+  if (inner) inner.classList.add("fading");
+  setTimeout(() => {
+    bottleMarker.setLatLng([bottle.location.lat, bottle.location.lng]);
+    const el2 = bottleMarker.getElement();
+    const inner2 = el2 && el2.querySelector(".bottle");
+    if (inner2) {
+      // Force a reflow so the next class removal triggers the opacity
+      // transition cleanly (otherwise removing+adding in the same frame
+      // can be coalesced and the fade-in skips).
+      void inner2.offsetWidth;
+      inner2.classList.remove("fading");
+    }
+  }, 500);
+}
+
+// Schedule the next refresh at the top of the next UTC hour. We add a small
+// buffer (250ms) so we're past the hour boundary when getBottleForHour()
+// reads `new Date().getUTCHours()` and don't accidentally re-pick the
+// previous hour due to clock skew.
+function scheduleBottleHourTick() {
+  if (bottleHourTimer) clearTimeout(bottleHourTimer);
+  const now = new Date();
+  const next = new Date(now);
+  next.setUTCHours(now.getUTCHours() + 1, 0, 0, 250);
+  const ms = Math.max(1000, next.getTime() - now.getTime());
+  bottleHourTimer = setTimeout(() => {
+    placeBottle();
+    scheduleBottleHourTick();
+  }, ms);
+}
+
 // ───────────── HEARD AROUND THE WORLD ─────────────
 // One message per continent, up to 6 continents. Selection is RANDOM but
 // weighted toward recent messages — newer voices are more likely to be
@@ -3618,6 +3960,7 @@ const SILHOUETTE_STYLE = {
 
 function updateLayers() {
   if (!map.hasLayer(dotLayer)) dotLayer.addTo(map);
+  if (!map.hasLayer(bottleLayer)) bottleLayer.addTo(map);
   if (countriesLayer && !map.hasLayer(countriesLayer)) countriesLayer.addTo(map);
 }
 
@@ -5169,6 +5512,13 @@ if (IS_DEV_MODE) {
   buildMessages();
   rebuildDots();
   if (!map.hasLayer(dotLayer)) dotLayer.addTo(map);
+
+  // Drop the hourly bottle and start the UTC-hour ticker. Pure client-side,
+  // independent of the Supabase boot path — runs even if the network is
+  // down or the messages fetch fails.
+  placeBottle();
+  if (!map.hasLayer(bottleLayer)) bottleLayer.addTo(map);
+  scheduleBottleHourTick();
 
   // Country layer is heavy (~177 SVG paths). Load and render it AFTER first
   // paint so dots and UI come up immediately. Use requestIdleCallback to slot
