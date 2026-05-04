@@ -4895,6 +4895,10 @@ function rowToFlare(row) {
     continent: row.continent || continentFromLatLng(row.lat, row.lng),
     planter_id: row.planter_id,
     planter_loc: row.planter_loc || "",
+    // Preserved so the polling cursor can be seeded from boot data
+    // (`seedLastSeenFromBoot`) — otherwise the first poll would re-fetch
+    // every flare loaded at boot just to dedupe them client-side.
+    created_at: row.created_at || null,
     responses: [],
     mine: row.planter_id === PLANTER_ID
   };
@@ -5622,42 +5626,56 @@ if (IS_DEV_MODE) {
   // user actually opens them. Removed 2026-05-03; see comment above
   // `pretranslateAll`'s old definition site for context.
 
-  // ── Realtime: one channel, three INSERT handlers, paused when tab hidden ──
-  // Single combined channel for messages + flares + flare_responses INSERTs.
-  // (Previously two separate channels — combined to halve each visitor's
-  // WebSocket connection count against the free-tier 200-concurrent cap.)
+  // ── Polling-based sync (rewrite of 2026-05-04) ──
+  // All Supabase realtime websocket subscriptions were removed. The map is
+  // refreshed by a 30-second polling loop that runs an incremental SELECT
+  // (`created_at > lastSeenAt`) on messages, flares, and flare_responses.
   //
-  // VISIBILITY-AWARE SUBSCRIPTION (added 2026-05-03):
-  // When the tab goes hidden, we tear down the channel so this client stops
-  // receiving INSERT broadcasts it can't show anyway. When the tab returns,
-  // we re-subscribe and run a small catch-up SELECT for anything that landed
-  // while we were gone (filtered by `lastRealtimeSeenAt > created_at`).
-  // Backgrounded tabs are a big chunk of any "concurrent users" peak, so
-  // dropping their realtime cost is real-money savings on the message meter.
+  // Why polling: dropadot does not need sub-second updates. The poster
+  // sees their own dot/flare/response immediately via optimistic local
+  // insert (`addDotMarker` for dots, `addFlareMarker` for flares,
+  // `f.responses.push(data)` for responses). Other users seeing new
+  // content within ~30s is more than enough for a "live-feeling" map.
+  // In exchange we drop to ~zero realtime quota usage and zero
+  // concurrent-WebSocket usage — the site sits comfortably on Supabase's
+  // free tier under normal traffic without the 200-concurrent-connection
+  // cap or the message-budget meter being concerns.
   //
-  // No UPDATE subscriptions on any table — view-count tracking was removed.
+  // Cost controls:
+  //   - Polling pauses entirely when `document.hidden` (background tabs).
+  //   - Polling pauses after IDLE_THRESHOLD_MS of no user interaction
+  //     (mousemove / keydown / touchstart / scroll / click). Resumes
+  //     on the next interaction with an immediate catch-up poll.
+  //   - In-flight guard prevents overlapping fetches if the network is
+  //     slow and a tick fires while the previous SELECT is still running.
+  //
+  // The de-dupe + apply helpers (`applyMessageRow` / `applyFlareRow` /
+  // `applyFlareResponseRow`) handle the "already have this id" check, so
+  // a row applied via the poster's optimistic insert AND later returned
+  // by a poll lands exactly once.
 
-  let realtimeChannel = null;
-  // High-water mark for catch-up. Initialized to today's UTC midnight so the
-  // first hidden→visible cycle (if any) can never reach back further than
-  // today's data window.
-  let lastRealtimeSeenAt = todayMidnightUTC();
-  function bumpSeen(row) {
-    if (row && row.created_at && row.created_at > lastRealtimeSeenAt) {
-      lastRealtimeSeenAt = row.created_at;
-    }
-  }
+  const POLL_INTERVAL_MS = 30000;
+  const IDLE_THRESHOLD_MS = 5 * 60 * 1000;
 
-  // De-dupe + apply helpers shared by the realtime handlers AND the catch-up
-  // SELECT. Each returns true if the row was newly applied so the caller can
-  // batch any side-effects (layer updates, panel re-render).
+  // High-water mark for incremental polling. Initialized to today's UTC
+  // midnight so the first poll can never reach back further than today's
+  // data window. Advanced inside `pollOnce()` from the raw fetch results
+  // (not from apply helpers — the helpers short-circuit on duplicates,
+  // which would freeze the cursor on a poll that returns only already-
+  // applied rows and cause every subsequent poll to refetch the same set).
+  let lastSeenAt = todayMidnightUTC();
+
+  // De-dupe + apply helpers. Each returns true if the row was newly
+  // applied so the caller can batch side-effects (layer updates, Heard
+  // panel re-render). The `dotMarkers.has` / `flareMarkers.has` /
+  // `f.responses.some` guards make these idempotent — calling them twice
+  // with the same row is a no-op.
   function applyMessageRow(row) {
     if (!row || !row.id) return false;
     if (dotMarkers.has(row.id)) return false;
     const msg = rowToMsg(row, mineIds);
     messages.push(msg);
     addDotMarker(msg);
-    bumpSeen(row);
     return true;
   }
   function applyFlareRow(row) {
@@ -5667,7 +5685,6 @@ if (IS_DEV_MODE) {
     flares.push(flare);
     addFlareMarker(flare);
     if (!map.hasLayer(flareLayer)) flareLayer.addTo(map);
-    bumpSeen(row);
     return true;
   }
   function applyFlareResponseRow(row) {
@@ -5678,32 +5695,34 @@ if (IS_DEV_MODE) {
     if (f.responses.some(r => r.id === row.id)) return false;
     f.responses.push(row);
     refreshFlareMarkerStyle(f);
-    bumpSeen(row);
     return true;
   }
 
-  function subscribeRealtime() {
-    return sb.channel("hw-realtime")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, (p) => {
-        if (applyMessageRow(p.new)) {
-          updateLayers();
-          scheduleHeardPanelRender();
-        }
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "flares" }, (p) => {
-        applyFlareRow(p.new);
-      })
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "flare_responses" }, (p) => {
-        applyFlareResponseRow(p.new);
-      })
-      .subscribe();
+  // If a flare's popup is currently open and a new response just landed,
+  // rebuild its content so the user sees the new reply without having to
+  // close and re-open. No-op when the popup isn't open. Safe to call from
+  // the polling loop — the popup re-translates on-demand exactly like an
+  // initial open would.
+  function refreshOpenFlarePopup(flareId) {
+    const fm = flareMarkers.get(flareId);
+    if (!fm || !fm.isPopupOpen || !fm.isPopupOpen()) return;
+    const flare = flares.find(x => x.id === flareId);
+    if (!flare) return;
+    const popup = fm.getPopup();
+    if (!popup) return;
+    popup.setContent(buildFlarePopup(flare));
+    if (popup.update) popup.update();
   }
 
-  // Catch up on rows created while we were unsubscribed. Runs in parallel
-  // for the three tables; messages/flares are applied before responses so a
-  // response can find its parent flare in the in-memory list.
-  async function catchUpSinceHidden() {
-    const since = lastRealtimeSeenAt;
+  // Run one incremental fetch across all three tables. Used by the 30s
+  // tick and by the on-demand catch-ups triggered by tab return and
+  // idle-exit. `pollInFlight` prevents two polls overlapping if a request
+  // is slow.
+  let pollInFlight = false;
+  async function pollOnce() {
+    if (pollInFlight) return;
+    pollInFlight = true;
+    const since = lastSeenAt;
     try {
       const [m, f, r] = await Promise.all([
         sb.from("messages")
@@ -5717,41 +5736,126 @@ if (IS_DEV_MODE) {
           .gt("created_at", since).order("created_at", { ascending: true })
       ]);
       let touched = false;
-      if (Array.isArray(m.data)) for (const row of m.data) touched = applyMessageRow(row) || touched;
-      if (Array.isArray(f.data)) for (const row of f.data) applyFlareRow(row);
-      if (Array.isArray(r.data)) for (const row of r.data) applyFlareResponseRow(row);
+      let maxSeen = since;
+      if (Array.isArray(m.data)) {
+        for (const row of m.data) {
+          if (row.created_at && row.created_at > maxSeen) maxSeen = row.created_at;
+          touched = applyMessageRow(row) || touched;
+        }
+      }
+      if (Array.isArray(f.data)) {
+        for (const row of f.data) {
+          if (row.created_at && row.created_at > maxSeen) maxSeen = row.created_at;
+          applyFlareRow(row);
+        }
+      }
+      if (Array.isArray(r.data)) {
+        for (const row of r.data) {
+          if (row.created_at && row.created_at > maxSeen) maxSeen = row.created_at;
+          if (applyFlareResponseRow(row)) refreshOpenFlarePopup(row.flare_id);
+        }
+      }
+      // Advance the cursor unconditionally — even when every returned row
+      // was a duplicate (e.g., the very first poll after boot, when the
+      // boot fetch and the poll window overlap). Otherwise the cursor
+      // would stay pinned at midnight UTC and every poll would re-fetch
+      // the full day's rows.
+      if (maxSeen > lastSeenAt) lastSeenAt = maxSeen;
       if (touched) {
         updateLayers();
         scheduleHeardPanelRender();
       }
     } catch (e) {
-      console.warn("[supabase] visibility catch-up failed:", e);
+      console.warn("[supabase] poll failed:", e);
+    } finally {
+      pollInFlight = false;
     }
   }
 
+  // Polling timer + idle/visibility gating.
+  let pollTimer = null;
+  let lastInteractionAt = Date.now();
+
+  function isIdle() {
+    return Date.now() - lastInteractionAt > IDLE_THRESHOLD_MS;
+  }
+
+  function startPolling() {
+    if (pollTimer) return;
+    pollTimer = setInterval(() => {
+      // Re-check gating inside the tick: if the tab went hidden or the
+      // user idled out between starts, stop the timer entirely instead
+      // of burning a fetch the user can't see.
+      if (document.hidden || isIdle()) {
+        stopPolling();
+        return;
+      }
+      pollOnce();
+    }, POLL_INTERVAL_MS);
+  }
+
+  function stopPolling() {
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }
+
+  // Tab visibility: stop polling entirely when backgrounded; on return,
+  // run an immediate catch-up poll and resume the 30s tick (provided the
+  // user isn't also idle).
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) {
-      if (realtimeChannel) {
-        sb.removeChannel(realtimeChannel);
-        realtimeChannel = null;
-      }
-    } else if (!realtimeChannel) {
-      // Subscribe FIRST, then catch up. This way any INSERT arriving during
-      // the catch-up SELECT is delivered via realtime; a later duplicate via
-      // the SELECT is filtered by the `if-already-have-this-id` guards in the
-      // apply helpers. The reverse order would leave a small gap window.
-      realtimeChannel = subscribeRealtime();
-      catchUpSinceHidden();
+      stopPolling();
+    } else if (!isIdle()) {
+      pollOnce();
+      startPolling();
     }
   });
 
-  // Initial subscribe.
-  realtimeChannel = subscribeRealtime();
+  // User idle: track interaction; the timer self-stops once
+  // IDLE_THRESHOLD_MS elapses with no input. On the first interaction
+  // after idling out, run an immediate catch-up poll and restart the
+  // timer. Listeners are passive + capture so they fire even when a
+  // subordinate handler stops propagation, and they don't block any
+  // existing event paths (map drag, popup open, etc.).
+  function bumpInteraction() {
+    const wasIdle = isIdle();
+    lastInteractionAt = Date.now();
+    if (wasIdle && !document.hidden && !pollTimer) {
+      pollOnce();
+      startPolling();
+    }
+  }
+  for (const ev of ["mousemove", "keydown", "touchstart", "scroll", "click"]) {
+    window.addEventListener(ev, bumpInteraction, { passive: true, capture: true });
+  }
 
-  // Start the Heard panel's steady-state rotation. INSERT events still trigger
-  // immediate renders via scheduleHeardPanelRender(); this re-rolls the random
-  // pick every HW_ROTATE_MS so the displayed messages cycle even when no new
-  // dots are landing.
+  // Seed the cursor from boot data. Without this, `lastSeenAt` stays at
+  // today's UTC midnight and the first poll (30s after load) re-fetches
+  // every row already loaded by the boot SELECTs just to dedupe them
+  // client-side. Walking the in-memory state skips that wasted round-trip.
+  function seedLastSeenFromBoot() {
+    for (const m of messages) {
+      if (m.created_at && m.created_at > lastSeenAt) lastSeenAt = m.created_at;
+    }
+    for (const f of flares) {
+      if (f.created_at && f.created_at > lastSeenAt) lastSeenAt = f.created_at;
+      for (const r of (f.responses || [])) {
+        if (r.created_at && r.created_at > lastSeenAt) lastSeenAt = r.created_at;
+      }
+    }
+  }
+  seedLastSeenFromBoot();
+
+  // Initial start. If the tab loaded already-hidden, polling will start
+  // on the first visibilitychange.
+  if (!document.hidden) startPolling();
+
+  // Start the Heard panel's steady-state rotation. New rows from polls
+  // still trigger immediate renders via scheduleHeardPanelRender(); this
+  // re-rolls the random pick every HW_ROTATE_MS so the displayed messages
+  // cycle even when no new dots are landing.
   startHeardRotation();
 })();
 </script>
