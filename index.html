@@ -1168,6 +1168,11 @@
     height: 20px;
     cursor: pointer;
     position: relative;
+    /* Static 45° counter-clockwise tilt so the bottle reads as lying
+       sideways on the surface rather than standing upright. No motion
+       on top of it — see the comment block where the float animation
+       used to live for why. */
+    transform: rotate(-45deg);
     /* The bottle SVG fills `currentColor`, and `color` is animated by
        `moodCycle` — so the silhouette cycles through the full mood
        palette in lock-step with the THE RULES button on the homepage
