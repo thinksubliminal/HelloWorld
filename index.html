@@ -4001,7 +4001,7 @@ const TREASURE_CHEST_OPENER =
 const TREASURE_CHEST_PROMPT_DROP =
   "Drop a dot first to claim the treasure.";
 const TREASURE_CHEST_ALREADY_CLAIMED =
-  "The treasure has already been claimed. Look for the chosen one.";
+  "The treasure has already been claimed. Drop a dot to be ready next hour.";
 
 // Continent round-robin: each round of 7 hours visits each continent
 // exactly once, in a shuffled order. The seed is per-(date, round) so
@@ -4058,14 +4058,20 @@ function treasureChestIconHtml() {
 // popup).
 function pickTreasureChestMessage() {
   const myDot = loadUserMessages().find(m => m.mine);
-  if (!myDot) return TREASURE_CHEST_PROMPT_DROP;
-  if (currentChestClaim) {
-    // If I claimed it earlier this hour (e.g., reopening from a refresh
-    // or a second tab), keep showing the opener — "already claimed"
-    // would read wrong to the actual winner.
-    if (currentChestClaim.dot_id === myDot.id) return TREASURE_CHEST_OPENER;
-    return TREASURE_CHEST_ALREADY_CLAIMED;
+
+  // Winner exception (preserved): if I claimed this hour earlier and am
+  // reopening the popup, keep showing the opener — telling the actual
+  // winner that "the treasure has already been claimed" would read wrong.
+  if (currentChestClaim && myDot && currentChestClaim.dot_id === myDot.id) {
+    return TREASURE_CHEST_OPENER;
   }
+  // 1. Claim already exists (someone else won) — claim status takes
+  //    priority over dot status, so a user who hasn't dropped today
+  //    sees this instead of the misleading "drop a dot first" prompt.
+  if (currentChestClaim) return TREASURE_CHEST_ALREADY_CLAIMED;
+  // 2. No claim yet, but user has nothing to claim with.
+  if (!myDot) return TREASURE_CHEST_PROMPT_DROP;
+  // 3. Clean state — proceed with the normal claim flow.
   return TREASURE_CHEST_OPENER;
 }
 
