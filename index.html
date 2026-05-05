@@ -450,11 +450,9 @@
   #hint.gone { opacity: 0; }
 
   #title {
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
-    font-size: 16px;
-    font-weight: 800;
-    color: #c0c0c0;
-    letter-spacing: -0.01em;
+    height: 20px;
+    width: auto;
+    display: block;
   }
 
   /* Cycles an element through all 9 mood colors over 24 seconds, looping
@@ -1816,7 +1814,7 @@
 <body>
 <nav id="topNav">
   <div class="nav-left">
-    <div id="title">Hello, World!</div>
+    <img id="title" src="assets/hello-world-logo.svg" alt="Hello, World!" />
   </div>
   <div class="nav-right">
     <button id="helpBtn" type="button" aria-label="the rules">the rules</button>
