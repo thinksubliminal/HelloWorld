@@ -3423,11 +3423,17 @@ function addDotMarker(msg) {
     iconAnchor: [13.5, 13.5]
   });
   const m = L.marker([msg.lat, msg.lng], { icon, riseOnHover: true, keyboard: false });
+  // Mobile-only autoPan: if a dot is near a screen edge, Leaflet shifts the
+  // map just enough to bring the popup fully into view; if the popup already
+  // fits, no movement happens. Desktop keeps autoPan off so taps near the
+  // edge don't budge the map.
   m.bindPopup(() => buildPopup(msg), {
     closeButton: false,
     minWidth: 220,
     maxWidth: 220,
-    autoPan: false
+    autoPan: window.innerWidth < 768,
+    autoPanPadding: [20, 20],
+    keepInView: false
   });
 
   if (IS_HOVER_DEVICE && msg.text) {
