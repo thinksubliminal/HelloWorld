@@ -4924,6 +4924,30 @@ function addFlareMarker(flare) {
     autoPan: true,
     className: "flare-popup"
   });
+  // Mobile-only pan-before-open. We want the flare to land at ~65% down
+  // the screen so the popup has room to open above it without covering
+  // the marker. Compute the new center by projecting the flare to its
+  // current pixel position and shifting the center up by 15% of the
+  // viewport height (65% target − 50% screen-center = 15%). Desktop
+  // opens immediately, no movement. Second-click toggle-close is preserved.
+  m.off("click").on("click", () => {
+    if (m.isPopupOpen()) { m.closePopup(); return; }
+    if (window.innerWidth < 768) {
+      const size = map.getSize();
+      const flarePoint = map.latLngToContainerPoint([flare.lat, flare.lng]);
+      const targetCenter = map.containerPointToLatLng(
+        L.point(flarePoint.x, flarePoint.y - size.y * 0.15)
+      );
+      map.panTo(targetCenter, {
+        animate: true,
+        duration: 0.35,
+        easeLinearity: 0.25
+      });
+      map.once("moveend", () => m.openPopup());
+    } else {
+      m.openPopup();
+    }
+  });
 
   if (IS_HOVER_DEVICE && flare.text) {
     m.bindTooltip(escapeHtml(firstLine(flare.text)), {
