@@ -3308,24 +3308,27 @@ const DotCanvas = L.Layer.extend({
 
     if (isChosen) {
       // Render the mood emoji + gold glow in place of the dot circle.
-      // The emoji sits at the dot's center, sized to roughly fill the
-      // 14px hoverScale=1 footprint of a regular dot. We DON'T draw
-      // the "mine" ring or the colored fill here — the emoji + glow
-      // is the sole visual signal that this dot was chosen.
+      // Sized noticeably larger than a regular dot (~11px footprint) to
+      // match the visual weight of the "world feels" mood breakdown row
+      // and signal "this one's special." Hover/popup-open scaling still
+      // applies via `s` so the chosen dot grows on hover like any other.
+      // We DON'T draw the "mine" ring or the colored fill here — the
+      // emoji + glow is the sole visual signal.
       const mood = MOOD_BY_ID[currentChestClaim.mood];
       const emoji = (mood && mood.emoji) || "✨";
       ctx.save();
       ctx.globalAlpha = a;
       ctx.shadowColor = "rgba(255, 215, 0, 0.85)";
-      ctx.shadowBlur = 14;
-      ctx.font = `${Math.round(15 * s)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif`;
+      ctx.shadowBlur = 24;
+      ctx.font = `${Math.round(26 * s)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(emoji, x, y);
-      // Second pass with reduced shadow draws a softer outer halo without
-      // double-fattening the emoji glyph itself.
+      // Second pass with a wider, softer halo. Scaled with the emoji
+      // (~1.5× the inner blur) so the glow stays proportionally
+      // generous at the new size without over-dominating neighbors.
       ctx.shadowColor = "rgba(255, 215, 0, 0.4)";
-      ctx.shadowBlur = 22;
+      ctx.shadowBlur = 38;
       ctx.fillText(emoji, x, y);
       ctx.restore();
       return;
