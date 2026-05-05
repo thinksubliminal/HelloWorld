@@ -1187,6 +1187,49 @@
     overflow: visible;
   }
 
+  /* Treasure-chest marker — companion to the bottle. Same 20x20 box and
+     wrapper pattern as `.bottle`, but no tilt and no mood-cycle animation
+     (the chest is meant to feel grounded, not drifting). The SVG fills
+     `currentColor` so the silhouette color is CSS-driven; default below
+     is a warm gold to suggest "treasure" without being loud. The chest
+     is non-interactive in this session — no `cursor: pointer` here, and
+     no popup is bound on the marker side either. */
+  .treasure-chest-wrap {
+    background: transparent !important;
+    border: none !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .treasure-chest {
+    width: 20px;
+    height: 20px;
+    position: relative;
+    color: #F5B842;
+    /* Subtle golden glow — two stacked drop-shadows for a tight inner
+       halo + softer outer bloom. Follows the chest silhouette so it
+       reads as light coming off the chest rather than a sticker. */
+    filter: drop-shadow(0 0 2px rgba(245, 184, 66, 0.5))
+            drop-shadow(0 0 7px rgba(245, 184, 66, 0.2));
+    transition: color 0.4s ease, filter 0.4s ease;
+  }
+  /* Claimed-for-this-hour state. The chest is still tappable (taps show
+     the "already claimed" message) but visually muted so it doesn't
+     compete with the chosen dot. Color goes neutral grey, glow filter
+     is dropped entirely, opacity falls to 0.55 so it reads as
+     "settled". The next UTC hour rollover restores the gold. */
+  .treasure-chest.claimed {
+    color: #8a8e96;
+    filter: none;
+    opacity: 0.55;
+  }
+  .treasure-chest svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+  }
+
   /* The bottle popup intentionally has NO bespoke styling. It inherits the
      same .leaflet-popup-content-wrapper / .leaflet-popup-tip /
      .leaflet-popup-content rules used by mood dot popups, and its content
@@ -2162,6 +2205,103 @@ const BOTTLE_SVG = `<svg viewBox="0 0 246 566" xmlns="http://www.w3.org/2000/svg
   </g>
 </svg>`;
 
+// Treasure-chest SVG, mirrored on the bottle's inlining pattern. The path
+// is unchanged from `assets/treasure-chest.svg` aside from swapping the
+// hardcoded `fill:white` for `fill="currentColor"` so the silhouette
+// color is CSS-driven. Square viewBox (372x365) — sized down to 20x20 by
+// the `.treasure-chest` rule so it sits at the same visual weight as the
+// bottle.
+const TREASURE_CHEST_SVG = `<svg viewBox="0 0 365 304" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <g transform="matrix(1,0,0,1,-11.708333,-10.9375)">
+    <g transform="matrix(1,0,0,1,-34,-88)">
+      <g transform="matrix(4.166667,0,0,4.166667,20.833333,41.666667)">
+        <path fill="currentColor" fill-rule="nonzero" d="M50,38.75C46.562,38.75 43.75,41.562 43.75,45C43.75,47.031 44.719,48.875 46.375,50.062C47.344,50.75 47.812,51.938 47.625,53.094L46.312,61.25L53.688,61.25L52.375,53.094C52.188,51.938 52.656,50.75 53.625,50.062C55.281,48.875 56.25,47.031 56.25,45C56.25,41.562 53.438,38.75 50,38.75Z"/>
+      </g>
+      <g transform="matrix(4.166667,0,0,4.166667,19.666667,42.166667)">
+        <path fill="currentColor" fill-rule="nonzero" d="M79.531,13.625L20.469,13.625C12.625,13.625 6.25,20 6.25,27.844L6.25,43.188L31.312,43.188C33.031,43.188 34.437,44.594 34.437,46.313C34.437,48.032 33.031,49.438 31.312,49.438L6.25,49.438L6.25,83.25C6.25,84.969 7.656,86.375 9.375,86.375L90.625,86.375C92.344,86.375 93.75,84.969 93.75,83.25L93.75,49.438L68.688,49.438C66.969,49.438 65.563,48.032 65.563,46.313C65.563,44.594 66.969,43.188 68.688,43.188L93.75,43.188L93.75,27.844C93.75,20 87.375,13.625 79.531,13.625ZM60.437,63.875C60.593,64.781 60.312,65.688 59.718,66.406C59.125,67.094 58.281,67.5 57.343,67.5L42.655,67.5C41.718,67.5 40.874,67.094 40.28,66.406C39.687,65.687 39.405,64.781 39.562,63.875L41.187,53.844C38.843,51.5 37.499,48.344 37.499,45C37.499,38.125 43.093,32.5 49.999,32.5C56.905,32.5 62.499,38.125 62.499,45C62.499,48.344 61.155,51.5 58.812,53.844L60.437,63.875Z"/>
+      </g>
+    </g>
+  </g>
+</svg>`;
+
+// Curated land coordinates for the hourly treasure-chest position. ~55
+// entries spread across all 7 continents with deliberately rough per-
+// continent quotas (12 Asia, 10 Africa, 10 Europe, 8 North America,
+// 7 South America, 5 Oceania, 3 Antarctica research stations). All
+// points are well-known cities (or stations) — they're visible to
+// every visitor worldwide, so the list is hand-picked rather than
+// random GIS samples.
+const TREASURE_LAND_LOCATIONS = [
+  // Asia (12)
+  { lat:  35.6762, lng:  139.6503, country: "Japan",         continent: "Asia" },
+  { lat:  39.9042, lng:  116.4074, country: "China",         continent: "Asia" },
+  { lat:  19.0760, lng:   72.8777, country: "India",         continent: "Asia" },
+  { lat:  13.7563, lng:  100.5018, country: "Thailand",      continent: "Asia" },
+  { lat:  37.5665, lng:  126.9780, country: "South Korea",   continent: "Asia" },
+  { lat:   1.3521, lng:  103.8198, country: "Singapore",     continent: "Asia" },
+  { lat:  41.0082, lng:   28.9784, country: "Türkiye",       continent: "Asia" },
+  { lat:  25.2048, lng:   55.2708, country: "UAE",           continent: "Asia" },
+  { lat:  -6.2088, lng:  106.8456, country: "Indonesia",     continent: "Asia" },
+  { lat:  14.5995, lng:  120.9842, country: "Philippines",   continent: "Asia" },
+  { lat:  35.6892, lng:   51.3890, country: "Iran",          continent: "Asia" },
+  { lat:  24.8607, lng:   67.0011, country: "Pakistan",      continent: "Asia" },
+
+  // Africa (10)
+  { lat:  30.0444, lng:   31.2357, country: "Egypt",         continent: "Africa" },
+  { lat:   6.5244, lng:    3.3792, country: "Nigeria",       continent: "Africa" },
+  { lat:  -1.2921, lng:   36.8219, country: "Kenya",         continent: "Africa" },
+  { lat: -33.9249, lng:   18.4241, country: "South Africa",  continent: "Africa" },
+  { lat:  31.6295, lng:   -7.9811, country: "Morocco",       continent: "Africa" },
+  { lat:   9.0300, lng:   38.7400, country: "Ethiopia",      continent: "Africa" },
+  { lat:  14.7167, lng:  -17.4677, country: "Senegal",       continent: "Africa" },
+  { lat:  -4.4419, lng:   15.2663, country: "DR Congo",      continent: "Africa" },
+  { lat:   5.6037, lng:   -0.1870, country: "Ghana",         continent: "Africa" },
+  { lat:  36.7538, lng:    3.0588, country: "Algeria",       continent: "Africa" },
+
+  // Europe (10)
+  { lat:  51.5074, lng:   -0.1278, country: "United Kingdom", continent: "Europe" },
+  { lat:  48.8566, lng:    2.3522, country: "France",        continent: "Europe" },
+  { lat:  41.9028, lng:   12.4964, country: "Italy",         continent: "Europe" },
+  { lat:  52.5200, lng:   13.4050, country: "Germany",       continent: "Europe" },
+  { lat:  40.4168, lng:   -3.7038, country: "Spain",         continent: "Europe" },
+  { lat:  37.9838, lng:   23.7275, country: "Greece",        continent: "Europe" },
+  { lat:  59.3293, lng:   18.0686, country: "Sweden",        continent: "Europe" },
+  { lat:  48.2082, lng:   16.3738, country: "Austria",       continent: "Europe" },
+  { lat:  50.0755, lng:   14.4378, country: "Czechia",       continent: "Europe" },
+  { lat:  38.7223, lng:   -9.1393, country: "Portugal",      continent: "Europe" },
+
+  // North America (8)
+  { lat:  40.7128, lng:  -74.0060, country: "United States", continent: "North America" },
+  { lat:  34.0522, lng: -118.2437, country: "United States", continent: "North America" },
+  { lat:  19.4326, lng:  -99.1332, country: "Mexico",        continent: "North America" },
+  { lat:  43.6532, lng:  -79.3832, country: "Canada",        continent: "North America" },
+  { lat:  41.8781, lng:  -87.6298, country: "United States", continent: "North America" },
+  { lat:  49.2827, lng: -123.1207, country: "Canada",        continent: "North America" },
+  { lat:  23.1136, lng:  -82.3666, country: "Cuba",          continent: "North America" },
+  { lat:   8.9824, lng:  -79.5199, country: "Panama",        continent: "North America" },
+
+  // South America (7)
+  { lat: -22.9068, lng:  -43.1729, country: "Brazil",        continent: "South America" },
+  { lat: -34.6037, lng:  -58.3816, country: "Argentina",     continent: "South America" },
+  { lat: -12.0464, lng:  -77.0428, country: "Peru",          continent: "South America" },
+  { lat: -33.4489, lng:  -70.6693, country: "Chile",         continent: "South America" },
+  { lat:   4.7110, lng:  -74.0721, country: "Colombia",      continent: "South America" },
+  { lat:  10.4806, lng:  -66.9036, country: "Venezuela",     continent: "South America" },
+  { lat: -16.5000, lng:  -68.1500, country: "Bolivia",       continent: "South America" },
+
+  // Oceania (5)
+  { lat: -33.8688, lng:  151.2093, country: "Australia",     continent: "Oceania" },
+  { lat: -37.8136, lng:  144.9631, country: "Australia",     continent: "Oceania" },
+  { lat: -36.8485, lng:  174.7633, country: "New Zealand",   continent: "Oceania" },
+  { lat: -41.2865, lng:  174.7762, country: "New Zealand",   continent: "Oceania" },
+  { lat: -18.1416, lng:  178.4419, country: "Fiji",          continent: "Oceania" },
+
+  // Antarctica (3) — research stations
+  { lat: -77.8419, lng:  166.6863, country: "McMurdo Station",         continent: "Antarctica" },
+  { lat: -89.9911, lng:  139.2667, country: "Amundsen-Scott Station",  continent: "Antarctica" },
+  { lat: -78.4644, lng:  106.8367, country: "Vostok Station",          continent: "Antarctica" }
+];
+
 // ───────────── CITY DATABASE (for nearest-city labeling) ─────────────
 const CITIES = [
   { name: "Portland, OR", lat: 45.5152, lng: -122.6784 },
@@ -3089,6 +3229,14 @@ const DotCanvas = L.Layer.extend({
     const cycleMs = 3000;
     const baseR = 5.5;
 
+    // Defer the chosen dot to the end of the pass so its gold-glow emoji
+    // renders on top of any neighbouring regular dots. Per-dot bookkeeping
+    // (opacity / hoverScale lerps) still runs in the main loop — only the
+    // _drawDot call is held back. At most one chosen dot per frame, so a
+    // single capture slot is enough.
+    const chosenDotId = currentChestClaim && currentChestClaim.dot_id;
+    let deferredChosen = null;
+
     for (const d of this._dots.values()) {
       // All dots fully visible (recency tier system removed). Opacity still
       // lerps so brand-new dots fade in smoothly from 0 → 1.
@@ -3112,7 +3260,23 @@ const DotCanvas = L.Layer.extend({
       const pulseScale = 0.55 + (2.4 - 0.55) * eased;
       const pulseAlpha = phase < 0.8 ? 0.55 * (1 - phase / 0.8) : 0;
 
+      if (chosenDotId && d.id === chosenDotId) {
+        deferredChosen = { x: pt.x, y: pt.y, d, baseR, pulseScale, pulseAlpha };
+        continue;
+      }
+
       this._drawDot(ctx, pt.x, pt.y, d, baseR, pulseScale, pulseAlpha);
+    }
+
+    // Top layer: the chosen dot, drawn last so its emoji + gold glow
+    // always sits above any regular dot it overlaps.
+    if (deferredChosen) {
+      this._drawDot(
+        ctx,
+        deferredChosen.x, deferredChosen.y,
+        deferredChosen.d, deferredChosen.baseR,
+        deferredChosen.pulseScale, deferredChosen.pulseAlpha
+      );
     }
   },
 
@@ -3120,16 +3284,51 @@ const DotCanvas = L.Layer.extend({
     const s = d.hoverScale;
     const a = d.opacity;
 
+    // Chosen-by-the-chest state. When this dot is the current hour's
+    // claim winner, swap the colored circle for the user's mood emoji
+    // wrapped in a gold glow. Read state from the module-level
+    // `currentChestClaim` so flipping the variable in
+    // `placeTreasureChest()` / on INSERT 200 is enough to retransform
+    // the dot — no explicit redraw call needed (the canvas redraws on
+    // every animation tick anyway). Pulse ring keeps drawing so the
+    // chosen dot still feels alive.
+    const isChosen = !!(currentChestClaim && currentChestClaim.dot_id === d.id);
+
     // 1) Pulse ring (drawn first; sits behind the dot in source order).
     if (pulseAlpha > 0.01) {
       ctx.save();
       ctx.globalAlpha = a * pulseAlpha;
-      ctx.strokeStyle = d.soft;
+      ctx.strokeStyle = isChosen ? "rgba(255, 215, 0, 0.85)" : d.soft;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(x, y, (r + 3) * pulseScale, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
+    }
+
+    if (isChosen) {
+      // Render the mood emoji + gold glow in place of the dot circle.
+      // The emoji sits at the dot's center, sized to roughly fill the
+      // 14px hoverScale=1 footprint of a regular dot. We DON'T draw
+      // the "mine" ring or the colored fill here — the emoji + glow
+      // is the sole visual signal that this dot was chosen.
+      const mood = MOOD_BY_ID[currentChestClaim.mood];
+      const emoji = (mood && mood.emoji) || "✨";
+      ctx.save();
+      ctx.globalAlpha = a;
+      ctx.shadowColor = "rgba(255, 215, 0, 0.85)";
+      ctx.shadowBlur = 14;
+      ctx.font = `${Math.round(15 * s)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(emoji, x, y);
+      // Second pass with reduced shadow draws a softer outer halo without
+      // double-fattening the emoji glyph itself.
+      ctx.shadowColor = "rgba(255, 215, 0, 0.4)";
+      ctx.shadowBlur = 22;
+      ctx.fillText(emoji, x, y);
+      ctx.restore();
+      return;
     }
 
     // 2) "Mine" ring (concentric strokes). Drawn before the fill so the
@@ -3658,12 +3857,15 @@ function placeBottle() {
     // The popup re-reads bottleCurrent on every open, so it always shows
     // the message/location for whatever hour it is *right now* (not the
     // hour at which the marker was last moved). Same options as the dot
-    // popup so the panel sizing and frame match exactly.
+    // popup — including the mobile-only autoPan behavior — so the panel
+    // sizing, frame, and edge handling match exactly.
     bottleMarker.bindPopup(() => buildBottlePopup(bottleCurrent), {
       closeButton: false,
       minWidth: 220,
       maxWidth: 220,
-      autoPan: false
+      autoPan: window.innerWidth < 768,
+      autoPanPadding: [20, 20],
+      keepInView: false
     });
     bottleLayer.addLayer(bottleMarker);
     return;
@@ -3713,6 +3915,343 @@ function scheduleBottleHourTick() {
   bottleHourTimer = setTimeout(() => {
     placeBottle();
     scheduleBottleHourTick();
+  }, ms);
+}
+
+// ───────────── TREASURE CHEST ─────────────
+// Companion to the bottle: a single chest sits on land somewhere on the
+// map and changes location at the top of every UTC hour. PURELY
+// CLIENT-SIDE — no Supabase, no realtime, no row in any table. Same
+// posture as the bottle.
+//
+// Selection model differs from the bottle on one axis: a CONTINENT
+// ROUND-ROBIN. Each UTC hour the chest jumps to a freshly-picked
+// random location within the next continent in a date-seeded shuffle
+// of all 7 continents. After 7 hours every continent has had a turn;
+// the rotation reshuffles (with a per-round seed twist) and the next
+// round begins. So no continent ever gets the chest twice in a row
+// without every other continent getting a turn first. Within the
+// chosen continent, a per-hour seed picks the actual location, so
+// repeat-continent visits use different cities.
+//
+// NOT INTERACTIVE YET — no popup is bound to the marker and no click
+// handler is wired up. The chest just appears on the map. The
+// `isPopupOpen()` deferral check inside `placeTreasureChest()` is in
+// place anyway so when interaction lands later, the hour-rollover
+// "don't yank the popup out from under the user" behavior is already
+// correct without a follow-up edit.
+
+const TREASURE_CONTINENTS = [
+  "Asia", "Africa", "Europe",
+  "North America", "South America", "Oceania", "Antarctica"
+];
+
+const treasureChestLayer = L.layerGroup();
+let treasureChestMarker = null;
+let treasureChestHourTimer = null;
+let treasureChestCurrent = null;  // { hour, dateStr, continent, location }
+
+// ───────────── CHEST CLAIMS ─────────────
+// One claim per UTC hour, enforced by the `chest_claims.hour_key` UNIQUE
+// constraint. Two concurrent INSERTs for the same hour produce one
+// success and one Postgres `23505 unique_violation`; the loser surfaces
+// the "already claimed" branch in the popup.
+//
+// `currentChestClaim` mirrors the row for the current UTC hour:
+//   { hour_key, dot_id, mood, claimed_at }  // null means unclaimed
+// Populated at boot (a one-shot SELECT keyed to `currentHourKey()`) and
+// refreshed by `pollOnce()` every 30s. Cleared by `placeTreasureChest()`
+// when the UTC hour rolls over — the next poll then refills it.
+//
+// The dot canvas reads this variable per-frame inside `_drawDot`, so
+// flipping it instantly retransforms the chosen dot without an explicit
+// redraw call. The chest marker's grayed-out state is driven by
+// `refreshTreasureChestStyle()` which toggles `.treasure-chest.claimed`
+// on the marker DOM whenever this state changes.
+let currentChestClaim = null;
+
+function currentHourKey() {
+  const d = new Date();
+  return d.getUTCFullYear() + "-" +
+    String(d.getUTCMonth() + 1).padStart(2, "0") + "-" +
+    String(d.getUTCDate()).padStart(2, "0") + "T" +
+    String(d.getUTCHours()).padStart(2, "0");
+}
+
+// Keep the chest marker DOM in sync with `currentChestClaim`. Safe to
+// call before the marker exists (no-op). Cheap enough to call after any
+// state change.
+function refreshTreasureChestStyle() {
+  if (!treasureChestMarker) return;
+  const el = treasureChestMarker.getElement();
+  if (!el) return;
+  const inner = el.querySelector(".treasure-chest");
+  if (!inner) return;
+  inner.classList.toggle("claimed", !!currentChestClaim);
+}
+
+// Three popup messages for the chest. All three flow through the
+// existing MyMemory translation pipeline (`translate()` /
+// `getTranslatedNow()`) — same caching, same graceful degradation.
+const TREASURE_CHEST_OPENER =
+  "You found it. For the next hour, look for yourself on the map.";
+const TREASURE_CHEST_PROMPT_DROP =
+  "Drop a dot first to claim the treasure.";
+const TREASURE_CHEST_ALREADY_CLAIMED =
+  "The treasure has already been claimed. Look for the chosen one.";
+
+// Continent round-robin: each round of 7 hours visits each continent
+// exactly once, in a shuffled order. The seed is per-(date, round) so
+// the order varies day-to-day AND round-to-round within a single day,
+// preventing the chest from following the same path across rounds.
+// `0x5A827999` per spec — keeps this stream of randomness independent
+// of the bottle's stream (bottle uses `seedBase ^ 0x9E3779B9` for its
+// locations vs `seedBase` for messages).
+function getTreasureChestForHour(date) {
+  const dateStr = bottleUtcDateString(date);
+  const hour = date.getUTCHours();
+  const round = Math.floor(hour / 7);
+  const indexInRound = hour % 7;
+
+  const seedBase = (bottleHashSeed(dateStr) ^ 0x5A827999) >>> 0;
+  // Different seed per round so the continent order changes each round.
+  const roundSeed = (seedBase + Math.imul(round, 0x9E3779B9)) >>> 0;
+  const rngContinents = bottleMulberry32(roundSeed);
+  const shuffledContinents = bottleSeededShuffle(TREASURE_CONTINENTS, rngContinents);
+  const continent = shuffledContinents[indexInRound];
+
+  // Per-hour seed for picking a location within the chosen continent.
+  // Distinct from `roundSeed` so two different hours that happen to
+  // land on the same continent (in different rounds) usually pick
+  // different cities.
+  const locSeed = (seedBase + Math.imul(hour, 0x85EBCA6B)) >>> 0;
+  const rngLoc = bottleMulberry32(locSeed);
+  const candidates = TREASURE_LAND_LOCATIONS.filter(l => l.continent === continent);
+  const location = candidates[Math.floor(rngLoc() * candidates.length)];
+
+  return { hour, dateStr, continent, location };
+}
+
+function treasureChestIconHtml() {
+  return `<div class="treasure-chest" aria-hidden="true">${TREASURE_CHEST_SVG}</div>`;
+}
+
+// Chest popup. Reuses `.msg-text` from the dot popup so the frame,
+// padding, typography, and frosted-glass background all match the
+// existing dot/bottle popups without any bespoke CSS — any future
+// change to dot popup styling carries over here automatically.
+//
+// At popup-open time, the factory inspects local state and chooses
+// one of three messages (opener / prompt-drop / already-claimed),
+// then runs the chosen string through the same MyMemory translation
+// pipeline as dot popups (cached synchronous paint + async patch-in,
+// graceful null fallback to English). The click handler on the chest
+// marker decides whether the INSERT fires; this factory only renders.
+//
+// `pickTreasureChestMessage()` is exported as its own function so the
+// click handler can reuse the same branch decision when patching the
+// popup text after an INSERT outcome arrives (e.g., "lost the race"
+// → flip text from opener to already-claimed without closing the
+// popup).
+function pickTreasureChestMessage() {
+  const myDot = loadUserMessages().find(m => m.mine);
+  if (!myDot) return TREASURE_CHEST_PROMPT_DROP;
+  if (currentChestClaim) {
+    // If I claimed it earlier this hour (e.g., reopening from a refresh
+    // or a second tab), keep showing the opener — "already claimed"
+    // would read wrong to the actual winner.
+    if (currentChestClaim.dot_id === myDot.id) return TREASURE_CHEST_OPENER;
+    return TREASURE_CHEST_ALREADY_CLAIMED;
+  }
+  return TREASURE_CHEST_OPENER;
+}
+
+// Render the .msg-text element for `source` with the current language
+// applied (cached → synchronous; uncached → async patch). Used both
+// on initial popup build and when the click handler needs to swap
+// text after an INSERT result lands.
+function applyTreasureChestText(textEl, source) {
+  const target = getCurrentLang();
+  let displayText = source;
+  let cached = null;
+  if (target && target !== "off") {
+    cached = getTranslatedNow(source, target);
+    if (cached) displayText = cached;
+  }
+  textEl.textContent = displayText;
+  if (target && target !== "off" && !cached) {
+    translate(source, target).then((t) => {
+      if (!t || !t.trim()) return;
+      if (!textEl.isConnected || getCurrentLang() !== target) return;
+      if (textEl.textContent === t) return;
+      textEl.textContent = t;
+      const popup = treasureChestMarker && treasureChestMarker.getPopup && treasureChestMarker.getPopup();
+      if (popup && popup.update) popup.update();
+    });
+  }
+}
+
+function buildTreasureChestPopup() {
+  const wrap = document.createElement("div");
+  wrap.innerHTML = `<div class="msg-text"></div>`;
+  const textEl = wrap.querySelector(".msg-text");
+  applyTreasureChestText(textEl, pickTreasureChestMessage());
+  return wrap;
+}
+
+// After-the-fact text swap for the open chest popup. Used by the
+// click handler when an INSERT outcome flips the right branch (e.g.,
+// 23505 → "already claimed"). No-op if the popup isn't currently open.
+function setOpenChestPopupText(source) {
+  if (!treasureChestMarker || !treasureChestMarker.isPopupOpen()) return;
+  const popupEl = treasureChestMarker.getPopup() && treasureChestMarker.getPopup().getElement();
+  const textEl = popupEl && popupEl.querySelector(".msg-text");
+  if (!textEl) return;
+  applyTreasureChestText(textEl, source);
+}
+
+// Place the chest for the current UTC hour. First call creates the
+// marker; subsequent calls (driven by `scheduleTreasureChestHourTick`)
+// only move it when the hour actually changes. No fade animation — the
+// chest is visually static per spec; teleporting on the hour is fine.
+function placeTreasureChest() {
+  const chest = getTreasureChestForHour(new Date());
+  const previous = treasureChestCurrent;
+  treasureChestCurrent = chest;
+
+  if (!treasureChestMarker) {
+    const icon = L.divIcon({
+      className: "treasure-chest-wrap",
+      html: treasureChestIconHtml(),
+      iconSize: [20, 20],
+      iconAnchor: [10, 10]
+    });
+    treasureChestMarker = L.marker([chest.location.lat, chest.location.lng], {
+      icon,
+      riseOnHover: true,
+      keyboard: false
+    });
+    // Same popup options as the dot/bottle (closeButton off, fixed 220px
+    // width, mobile-only autoPan, shared 20px padding, keepInView off).
+    treasureChestMarker.bindPopup(() => buildTreasureChestPopup(), {
+      closeButton: false,
+      minWidth: 220,
+      maxWidth: 220,
+      autoPan: window.innerWidth < 768,
+      autoPanPadding: [20, 20],
+      keepInView: false
+    });
+
+    // Override Leaflet's default click→openPopup so we can decide
+    // branch + maybe fire the INSERT before the popup opens. Branch
+    // selection runs at click time from `loadUserMessages()` (today's
+    // own dot) and `currentChestClaim` (poll-populated). The popup
+    // factory then picks the same branch via `pickTreasureChestMessage()`
+    // for the displayed text. Toggle-close on second tap is preserved.
+    treasureChestMarker.off("click").on("click", () => {
+      if (treasureChestMarker.isPopupOpen()) {
+        treasureChestMarker.closePopup();
+        return;
+      }
+      const myDot = loadUserMessages().find(m => m.mine);
+
+      // Branch A: user hasn't dropped today → "Drop a dot first."
+      // Branch B: someone already claimed this hour → "Already claimed."
+      // Both branches just render the popup; no DB write.
+      if (!myDot || currentChestClaim) {
+        treasureChestMarker.openPopup();
+        return;
+      }
+
+      // Branch C: clean state — try to claim. Open popup immediately
+      // showing the opener; fire the INSERT in parallel. If we win,
+      // the dot canvas picks up the chosen state on its next frame
+      // (via `currentChestClaim`) and the chest marker grays out via
+      // `refreshTreasureChestStyle()`. If we lose to a 23505 race,
+      // re-fetch the actual claim row and swap the open popup's text
+      // to the "already claimed" branch.
+      treasureChestMarker.openPopup();
+      const hk = currentHourKey();
+      sb.from("chest_claims")
+        .insert({ hour_key: hk, dot_id: myDot.id, mood: myDot.mood })
+        .select("hour_key, dot_id, mood, claimed_at")
+        .single()
+        .then(({ data, error }) => {
+          if (data && !error) {
+            currentChestClaim = data;
+            refreshTreasureChestStyle();
+            // Popup already shows opener — no text patch needed.
+            return;
+          }
+          // 23505 unique_violation: someone else won. Refetch the row
+          // for accurate `currentChestClaim` (we want their dot_id /
+          // mood so the chosen-dot rendering kicks in for everyone,
+          // including this client).
+          if (error && error.code === "23505") {
+            sb.from("chest_claims")
+              .select("hour_key, dot_id, mood, claimed_at")
+              .eq("hour_key", hk)
+              .maybeSingle()
+              .then(({ data: existing }) => {
+                if (existing) {
+                  currentChestClaim = existing;
+                  refreshTreasureChestStyle();
+                  setOpenChestPopupText(TREASURE_CHEST_ALREADY_CLAIMED);
+                }
+              });
+            return;
+          }
+          // Other errors (network, RLS, etc.) — log and leave the
+          // opener visible. The next poll round will reconcile state
+          // if a winner exists; otherwise the chest stays clickable
+          // for a retry.
+          if (error) console.warn("[chest] claim insert failed:", error.message);
+        });
+    });
+
+    treasureChestLayer.addLayer(treasureChestMarker);
+    refreshTreasureChestStyle();
+    return;
+  }
+
+  // Marker exists; only move it if the hour actually changed.
+  if (previous &&
+      previous.hour === chest.hour &&
+      previous.dateStr === chest.dateStr) {
+    return;
+  }
+
+  // Hour rolled over. Drop the previous hour's claim — it's no longer
+  // valid for the new `currentHourKey()` — and let the next poll fill
+  // in any fresh claim that may already exist for the new hour. Worst
+  // case: chest appears ungrayed for up to 30s before the poll lands;
+  // taps during that window will hit a 23505 race if someone else has
+  // already claimed, and the popup will flip to "already claimed."
+  currentChestClaim = null;
+  refreshTreasureChestStyle();
+
+  // Defer move if a popup is open — don't yank the chest out from
+  // under a user who's reading.
+  if (treasureChestMarker.isPopupOpen && treasureChestMarker.isPopupOpen()) {
+    treasureChestMarker.once("popupclose", () => placeTreasureChest());
+    return;
+  }
+
+  treasureChestMarker.setLatLng([chest.location.lat, chest.location.lng]);
+}
+
+// Schedule the next refresh at the top of the next UTC hour. Mirror
+// of `scheduleBottleHourTick` — same +250ms buffer past the boundary
+// to dodge clock-skew false-reads of the previous hour.
+function scheduleTreasureChestHourTick() {
+  if (treasureChestHourTimer) clearTimeout(treasureChestHourTimer);
+  const now = new Date();
+  const next = new Date(now);
+  next.setUTCHours(now.getUTCHours() + 1, 0, 0, 250);
+  const ms = Math.max(1000, next.getTime() - now.getTime());
+  treasureChestHourTimer = setTimeout(() => {
+    placeTreasureChest();
+    scheduleTreasureChestHourTick();
   }, ms);
 }
 
@@ -3970,6 +4509,7 @@ const SILHOUETTE_STYLE = {
 function updateLayers() {
   if (!map.hasLayer(dotLayer)) dotLayer.addTo(map);
   if (!map.hasLayer(bottleLayer)) bottleLayer.addTo(map);
+  if (!map.hasLayer(treasureChestLayer)) treasureChestLayer.addTo(map);
   if (countriesLayer && !map.hasLayer(countriesLayer)) countriesLayer.addTo(map);
 }
 
@@ -5557,6 +6097,37 @@ if (IS_DEV_MODE) {
   if (!map.hasLayer(bottleLayer)) bottleLayer.addTo(map);
   scheduleBottleHourTick();
 
+  // Boot fetch for the current hour's chest claim. Done before
+  // `placeTreasureChest()` so the chest's grayed-out state and the
+  // chosen-dot rendering are correct on first paint instead of
+  // popping in 30s later when the first poll lands. Fire-and-forget
+  // — failures just leave `currentChestClaim` at its initial null,
+  // and the next poll cycle will reconcile.
+  (async () => {
+    try {
+      const hk = currentHourKey();
+      const { data } = await sb.from("chest_claims")
+        .select("hour_key, dot_id, mood, claimed_at")
+        .eq("hour_key", hk).maybeSingle();
+      if (data && currentHourKey() === hk) {
+        currentChestClaim = data;
+        refreshTreasureChestStyle();
+      }
+    } catch (e) {
+      console.warn("[chest] boot fetch failed:", e);
+    }
+  })();
+
+  // Same pattern for the treasure chest — pure client-side companion to
+  // the bottle, on land instead of in oceans. The chest now also has a
+  // claim mechanic: tapping it (when the user has dropped today and no
+  // one's claimed this hour) inserts into chest_claims and transforms
+  // the user's dot into a gold-glowing mood emoji for the rest of the
+  // UTC hour.
+  placeTreasureChest();
+  if (!map.hasLayer(treasureChestLayer)) treasureChestLayer.addTo(map);
+  scheduleTreasureChestHourTick();
+
   // Country layer is heavy (~177 SVG paths). Load and render it AFTER first
   // paint so dots and UI come up immediately. Use requestIdleCallback to slot
   // the SVG build into a quiet frame, with a setTimeout fallback.
@@ -5751,8 +6322,9 @@ if (IS_DEV_MODE) {
     if (pollInFlight) return;
     pollInFlight = true;
     const since = lastSeenAt;
+    const hk = currentHourKey();
     try {
-      const [m, f, r] = await Promise.all([
+      const [m, f, r, c] = await Promise.all([
         sb.from("messages")
           .select("id, text, lat, lng, loc, mood, created_at, continent")
           .gt("created_at", since).order("created_at", { ascending: true }),
@@ -5761,7 +6333,12 @@ if (IS_DEV_MODE) {
           .gt("created_at", since).order("created_at", { ascending: true }),
         sb.from("flare_responses")
           .select("id, flare_id, responder_id, text, created_at")
-          .gt("created_at", since).order("created_at", { ascending: true })
+          .gt("created_at", since).order("created_at", { ascending: true }),
+        // Chest claim for the current UTC hour. Single row at most;
+        // `maybeSingle` returns `data: null` cleanly when unclaimed.
+        sb.from("chest_claims")
+          .select("hour_key, dot_id, mood, claimed_at")
+          .eq("hour_key", hk).maybeSingle()
       ]);
       let touched = false;
       let maxSeen = since;
@@ -5792,6 +6369,30 @@ if (IS_DEV_MODE) {
       if (touched) {
         updateLayers();
         scheduleHeardPanelRender();
+      }
+      // Reconcile chest claim state. Only update when the hour key
+      // we queried matches the current key — guards against the (rare)
+      // case where we straddled an hour rollover during the SELECT.
+      // Compare by id so we don't churn the canvas when nothing changed.
+      if (currentHourKey() === hk) {
+        const next = (c && c.data) ? c.data : null;
+        const prevId = currentChestClaim && currentChestClaim.dot_id;
+        const nextId = next && next.dot_id;
+        if (prevId !== nextId) {
+          currentChestClaim = next;
+          refreshTreasureChestStyle();
+          // Dot canvas reads `currentChestClaim` per-frame, so the
+          // chosen-dot rendering picks up automatically on the next
+          // animation tick. If the chest popup is open showing the
+          // opener and a different user just won, swap to the
+          // already-claimed message in place.
+          if (next && treasureChestMarker && treasureChestMarker.isPopupOpen()) {
+            const myDot = loadUserMessages().find(mm => mm.mine);
+            if (!myDot || next.dot_id !== myDot.id) {
+              setOpenChestPopupText(TREASURE_CHEST_ALREADY_CLAIMED);
+            }
+          }
+        }
       }
     } catch (e) {
       console.warn("[supabase] poll failed:", e);
