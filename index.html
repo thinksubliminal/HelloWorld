@@ -3295,13 +3295,23 @@ const DotCanvas = L.Layer.extend({
     const isChosen = !!(currentChestClaim && currentChestClaim.dot_id === d.id);
 
     // 1) Pulse ring (drawn first; sits behind the dot in source order).
+    // Both the halo and the chosen-dot emoji are drawn at the same
+    // (x, y) so the halo is centered on the emoji, not offset. For the
+    // chosen dot the halo's radius is tied to the emoji's visual size
+    // (~13px radius for the 26 * s font) instead of the regular dot's
+    // ~5.5px radius — otherwise the smaller pulse formula would have
+    // the halo originate INSIDE the emoji and only emerge past its
+    // edge near the end of each cycle, reading as a misaligned bulge.
     if (pulseAlpha > 0.01) {
       ctx.save();
       ctx.globalAlpha = a * pulseAlpha;
       ctx.strokeStyle = isChosen ? "rgba(255, 215, 0, 0.85)" : d.soft;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(x, y, (r + 3) * pulseScale, 0, Math.PI * 2);
+      const haloR = isChosen
+        ? (14 + 4 * pulseScale) * s
+        : (r + 3) * pulseScale;
+      ctx.arc(x, y, haloR, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }
@@ -3318,18 +3328,28 @@ const DotCanvas = L.Layer.extend({
       const emoji = (mood && mood.emoji) || "✨";
       ctx.save();
       ctx.globalAlpha = a;
-      ctx.shadowColor = "rgba(255, 215, 0, 0.85)";
-      ctx.shadowBlur = 24;
       ctx.font = `${Math.round(26 * s)}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", system-ui, sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(emoji, x, y);
+      // `textBaseline:"middle"` + `textAlign:"center"` anchors at the
+      // EM-BOX center, but color-emoji glyphs often have asymmetric
+      // ascent/descent and side-bearings inside that box, leaving the
+      // visual glyph slightly upper-left of (x, y) on Apple Color Emoji.
+      // Use the measured bounding box to recenter the VISUAL glyph on
+      // (x, y) so the gold halo (which is drawn from a true center point
+      // via ctx.arc) aligns with the emoji.
+      const m = ctx.measureText(emoji);
+      const dx = ((m.actualBoundingBoxLeft   || 0) - (m.actualBoundingBoxRight  || 0)) / 2;
+      const dy = ((m.actualBoundingBoxAscent || 0) - (m.actualBoundingBoxDescent || 0)) / 2;
+      ctx.shadowColor = "rgba(255, 215, 0, 0.85)";
+      ctx.shadowBlur = 24;
+      ctx.fillText(emoji, x + dx, y + dy);
       // Second pass with a wider, softer halo. Scaled with the emoji
       // (~1.5× the inner blur) so the glow stays proportionally
       // generous at the new size without over-dominating neighbors.
       ctx.shadowColor = "rgba(255, 215, 0, 0.4)";
       ctx.shadowBlur = 38;
-      ctx.fillText(emoji, x, y);
+      ctx.fillText(emoji, x + dx, y + dy);
       ctx.restore();
       return;
     }
